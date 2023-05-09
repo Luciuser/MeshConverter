@@ -9,7 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
 	message(STATUS "No build type selected, default to Release")
 	set(CMAKE_BUILD_TYPE "Release")
 endif()
-
+ 
 
 if(DOWNLOAD_WITH_CNPM)
     set (GITHUB_REPOSITE "github.com.cnpmjs.org")
@@ -31,13 +31,29 @@ endif()
 set(EIGEN_BASE ${EXTERNAL_DIR}/eigen)
 set(IGL_BASE ${EXTERNAL_DIR}/libigl)
 
-
+add_compile_options(-fPIC)
 IF(MSVC)
  add_compile_options(-bigobj)
 endif()
 
 add_subdirectory(src/MeshOrient)
 
+# remesh
+set(SREMESH_SOURCES
+    src/meshIO.cpp
+    src/meshAlgorithm.cpp
+    src/Remesh/API_SRemesh.cpp
+    src/Remesh/tiger_sizingfunction.h
+    
+    src/Halfedge/PolyMesh_Base.cpp
+    src/Halfedge/PolyMesh.cpp
+    src/Halfedge/PolyMeshIterators.cpp
+    src/Halfedge/AABB_Tree.cpp
+)
+
+add_library(SRmesh_lib SHARED ${SREMESH_SOURCES})
+target_link_libraries(SRmesh_lib MeshOrient)
+target_link_libraries(SRmesh_lib MeshOrient)
 
 set(SOURCES
     src/meshIO.cpp
@@ -51,11 +67,17 @@ set(SOURCES
     src/Halfedge/AABB_Tree.cpp
     
     )
+
 include_directories(./src)
 include_directories(./extern/cli11)
 include_directories(${EIGEN_BASE})
-include_directories(${IGL_BASE})
+include_directories(${IGL_BASE}/include)
 include_directories(./src/MeshOrient)
-add_executable(MeshConverter ${SOURCES})
 
-target_link_libraries(MeshConverter MeshOrient)
+add_executable(MeshConverter ${SOURCES})
+target_link_libraries(MeshConverter MeshOrient SRmesh_lib)
+
+
+
+#add_executable(SRmesh_exe src/Remesh/SRemesh_test)
+#target_link_libraries(SRmesh_exe SRmesh_lib)

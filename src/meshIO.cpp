@@ -866,3 +866,35 @@ int MESHIO::writeStlIn(std::string filename, const Mesh &mesh)
     }
     f.close();
 }
+
+int MESHIO::getData(const std::vector<double>& points, const std::vector<int>& triangles, Mesh& mesh)
+{
+    int nFacets = triangles.size() / 3;
+    std::vector<int> surfaceID(nFacets, 0);
+
+    return getData(points, triangles, surfaceID, mesh);
+}
+
+int MESHIO::getData(const std::vector<double>& points, const std::vector<int>& triangles, const std::vector<int>& surfaceID, Mesh& mesh)
+{
+    auto& M = mesh.Masks;
+    auto& V = mesh.Vertex;
+    auto& T = mesh.Topo;
+
+    int nPoints = points.size() / 3;
+    int nFacets = triangles.size() / 3;
+
+    V.resize(nPoints, 3);
+    T.resize(nFacets, 3);
+    M.resize(nFacets, 1);
+
+    for (int i = 0; i < nPoints; i++) {
+        V.row(i) << points[3 * i], points[3 * i + 1], points[3 * i + 2];
+    }
+    for (int i = 0; i < nFacets; i++) {
+        T.row(i) << triangles[3 * i], triangles[3 * i + 1], triangles[3 * i + 2];
+        M.row(i) << surfaceID[i];
+    }
+
+    return 0;
+}

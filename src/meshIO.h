@@ -39,6 +39,9 @@ int writeFacet(std::string filename, const Mesh &mesh);
 int writeOBJ(std::string filename, const Mesh &mesh);
 int writeStlIn(std::string filename, const Mesh &mesh);
 
+int getData(const std::vector<double>& points, const std::vector<int>& triangles, Mesh& mesh);
+int getData(const std::vector<double>& points, const std::vector<int>& triangles, const std::vector<int>& surfaceID, Mesh& mesh);
+
 }
 
 #endif

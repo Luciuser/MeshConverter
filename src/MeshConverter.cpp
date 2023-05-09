@@ -233,12 +233,10 @@ int main(int argc, char **argv)
 	//********* Remesh *********
 	if(bremesh)
 	{
+		MESHIO::resetOrientation(mesh);
 		MESHIO::remesh(mesh);
 	}
 	
-	
-
-
 	//********* Create some box ********
 	if (createbox.size() != 0)
 	{
