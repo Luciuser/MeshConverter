@@ -26,7 +26,7 @@ int MESHIO::API_remesh_non_manifold(
     MESHIO::setData(points, triangles, surfaceID, mesh);
 
     RM.addSizeFunction(size_function);
-    RM.remeshNonManifold(mesh, mesh);
+    RM.remesh(mesh, mesh);
     std::cout << "remesh end" << std::endl;
 
     MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
