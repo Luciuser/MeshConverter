@@ -1,12 +1,17 @@
-
 #include "API_SRemesh.h"
+
+#include "tiger_sizingfunction.h"
 
 using namespace MESHIO::polymesh;
 
-int MESHIO::API_remesh_non_manifold(const std::vector<double>& points,
+int MESHIO::API_remesh_non_manifold(
+    const std::vector<double>& points,
     const std::vector<int>& triangles,
     const std::vector<int>& surfaceID,
     const std::function<double(double, double, double)>& size_function,
+    std::vector<double>& points_out,
+    std::vector<int>& triangles_out,
+    std::vector<int>& surfaceID_out,
     const bool b_write_vtk,
     const std::string write_vtk_file_name)
 {
@@ -15,26 +20,59 @@ int MESHIO::API_remesh_non_manifold(const std::vector<double>& points,
     if (RM.checkInput(points, triangles, surfaceID) != 0) {
         return -1;
     }
+    std::cout << "check input end" << std::endl;
 
     Mesh mesh;
-    MESHIO::getData(points, triangles, surfaceID, mesh);
+    MESHIO::setData(points, triangles, surfaceID, mesh);
     RM.addSizeFunction(size_function);
 
     RM.remeshNonManifold(mesh);
+    std::cout << "remesh end" << std::endl;
+
+    MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
 
     if (b_write_vtk) {
+        std::cout << "write file to " << write_vtk_file_name << std::endl;
         MESHIO::writeVTK(write_vtk_file_name, mesh, "surface_id");
     }
 
     return 0;
 }
 
+int MESHIO::API_remesh_non_manifold(
+    const std::vector<double>& points, 
+    const std::vector<int>& triangles, 
+    const std::vector<int>& surfaceID, 
+    const std::string size_vtk_file_name, 
+    std::vector<double>& points_out,
+    std::vector<int>& triangles_out,
+    std::vector<int>& surfaceID_out,
+    const bool b_write_vtk, 
+    const std::string write_vtk_file_name)
+{
+    RemeshManager RM;
+    std::function<double(double, double, double)> size_function;
+
+    RM.getSizeFunction(size_vtk_file_name, size_function);
+
+    return API_remesh_non_manifold(
+        points, 
+        triangles, 
+        surfaceID, 
+        size_function, 
+        points_out,
+        triangles_out,
+        surfaceID_out,
+        b_write_vtk, 
+        write_vtk_file_name);
+}
+
 
 MESHIO::RemeshParameter::RemeshParameter()
 {
-    b_use_size_function_ = false;
-    hmin_ = 0.1;
-    hmax_ = 10;
+    //b_use_size_function_ = false;
+    //hmin_ = 0.00001;
+    //hmax_ = 100000;
     size_function_ = [](double x, double y, double z)->double {
         return 0.0;
     };
@@ -46,12 +84,12 @@ MESHIO::RemeshParameter::~RemeshParameter()
 
 double MESHIO::RemeshParameter::getVertexSizeOrTargetLow(const Eigen::Vector3d& vertex)
 {
-    return this->b_use_size_function_ ? getVertexSize(vertex) : hmin_;
+    return this->b_use_size_function_ ? low_ratio_ * getVertexSize(vertex) : low_ratio_ * target_length_;
 }
 
 double MESHIO::RemeshParameter::getVertexSizeOrTargetHigh(const Eigen::Vector3d& vertex)
 {
-    return this->b_use_size_function_ ? getVertexSize(vertex) : hmax_;
+    return this->b_use_size_function_ ? high_ratio_ * getVertexSize(vertex) : high_ratio_ * target_length_;
 }
 
 
@@ -94,8 +132,38 @@ int MESHIO::RemeshManager::checkInput(const std::vector<double>& points, const s
 
     int nPoints = points.size() / 3;
     int nFacets = triangles.size() / 3;
+    int nSurfaceID = surfaceID.size();
+    //std::cout << "nPoints " << nPoints << " nFacets " << nFacets << " nSurfaceID " << nSurfaceID << std::endl;
+    //std::cout << "Points: " << std::endl;
+    //for (int i = 0; i < nPoints; i++) {
+    //    for (int j = 0; j < 3; j++) {
+    //        std::cout << points[3 * i + j] << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
+    //std::cout << "Facets: " << std::endl;
+    //for (int i = 0; i < nFacets; i++) {
+    //    for (int j = 0; j < 3; j++) {
+    //        std::cout << triangles[3 * i + j] << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
+    //std::cout << "SurfaceID: " << std::endl;
+    //for (int i = 0; i < nSurfaceID; i++) {
+    //    std::cout << surfaceID[i] << " " << std::endl;
+    //}
 
-    if (nFacets != surfaceID.size()) {
+    if (nPoints == 0) {
+        std::cout << "Error in input: The point coordinates array length is 0." << std::endl;
+        return -1;
+    }
+
+    if (nFacets == 0) {
+        std::cout << "Error in input: The triangle topology array length is 0." << std::endl;
+        return -1;
+    }
+
+    if (nFacets != nSurfaceID) {
         std::cout << "Error in input: The triangle topology array length is different with surfaceID array length." << std::endl;
         return -1;
     }
@@ -110,6 +178,20 @@ int MESHIO::RemeshManager::checkInput(const std::vector<double>& points, const s
             return -1;
         }
     }
+
+    return 0;
+}
+
+int MESHIO::RemeshManager::getSizeFunction(const std::string filename, std::function<double(double, double, double)>& size_function)
+{
+    int sfObjID;
+    int success = API_Create_SurfBKG_SF(
+        filename.c_str(),
+        1.2,
+        &sfObjID
+    );
+
+    size_function = API_Sizing_Query;
 
     return 0;
 }
@@ -158,7 +240,8 @@ void MESHIO::RemeshManager::split_long_edges(PolyMesh* mesh, RemeshParameter& pa
         MEdge* e = mesh->edge(i);
         double len = e->length();
         Eigen::Vector3d middle_point = e->getCenter();
-        if (len > parameter.getVertexSizeOrTargetLow(middle_point))
+        double size = parameter.getVertexSizeOrTargetHigh(middle_point);
+        if (len > size)
         {
             mesh->splitEdgeTriangle(e);
         }
@@ -182,7 +265,7 @@ void MESHIO::RemeshManager::collapse_short_edges(PolyMesh* mesh, RemeshParameter
             continue;
         double len = e->length();
         Eigen::Vector3d middle_point = e->getCenter();
-        if (len < parameter.getVertexSizeOrTargetHigh(middle_point))
+        if (len < parameter.getVertexSizeOrTargetLow(middle_point))
         {
             bool is_collapse = true;
             for (VertexVertexIter vv_it = mesh->vv_iter(p0); vv_it.isValid(); ++vv_it)
@@ -190,7 +273,7 @@ void MESHIO::RemeshManager::collapse_short_edges(PolyMesh* mesh, RemeshParameter
                 MVert* vv = *vv_it;
                 double len = (p1->position() - vv->position()).norm();
                 Eigen::Vector3d middle_point = p1->position() * 0.5 + vv->position() * 0.5;
-                if (len > parameter.getVertexSizeOrTargetLow(middle_point))
+                if (len > parameter.getVertexSizeOrTargetHigh(middle_point))
                 {
                     is_collapse = false;
                     break;
@@ -460,6 +543,8 @@ double MESHIO::RemeshManager::calculateTargetEdgeLength(PolyMesh* mesh)
 
 int MESHIO::RemeshManager::remeshNonManifold(Mesh& mesh)
 {
+    //MESHIO::checkData(mesh);
+
     // mesh initial
     for (int i = 0; i < mesh.Vertex.rows(); ++i) {
         half_mesh_.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));
@@ -473,13 +558,14 @@ int MESHIO::RemeshManager::remeshNonManifold(Mesh& mesh)
     get_AABB_tree(&half_mesh_, abtree_);
 
     // parameter initial
-    double target_edge_length;
-    target_edge_length = calculateTargetEdgeLength(&half_mesh_) / 2.0;
-    parameter_.setHmax(4.0 / 3.0 * target_edge_length);
-    parameter_.setHmin(4.0 / 5.0 * target_edge_length);
+    //double target_edge_length;
+    //target_edge_length = calculateTargetEdgeLength(&half_mesh_) / 2.0;
+    //parameter_.setHmax(4.0 / 3.0 * target_edge_length);
+    //parameter_.setHmin(4.0 / 5.0 * target_edge_length);
     
     for (int i = 0; i < 10; i++)
     {
+        std::cout << "Remesh in " << i << "th" << std::endl;
         split_long_edges(&half_mesh_, parameter_);
         collapse_short_edges(&half_mesh_, parameter_);
         equalize_valences(&half_mesh_);

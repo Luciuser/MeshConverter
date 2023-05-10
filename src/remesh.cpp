@@ -309,6 +309,9 @@ double MESHIO::calculateTargetEdgeLength(PolyMesh *mesh)
 }
 
 void MESHIO::remesh(Mesh& mesh){
+
+    //MESHIO::checkData(mesh);
+
   polymesh::PolyMesh half_mesh;
   for(int i = 0; i < mesh.Vertex.rows(); ++i){
     half_mesh.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));

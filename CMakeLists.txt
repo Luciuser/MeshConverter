@@ -42,6 +42,7 @@ add_subdirectory(src/MeshOrient)
 set(SREMESH_SOURCES
     src/meshIO.cpp
     src/meshAlgorithm.cpp
+    src/Remesh/API_SRemesh.h
     src/Remesh/API_SRemesh.cpp
     src/Remesh/tiger_sizingfunction.h
     
@@ -51,9 +52,9 @@ set(SREMESH_SOURCES
     src/Halfedge/AABB_Tree.cpp
 )
 
-add_library(SRmesh_lib SHARED ${SREMESH_SOURCES})
+add_library(SRmesh_lib STATIC ${SREMESH_SOURCES})
 target_link_libraries(SRmesh_lib MeshOrient)
-target_link_libraries(SRmesh_lib MeshOrient)
+target_link_libraries(SRmesh_lib  ${EXTERNAL_DIR}/adaSurfSizing/adaSurfSizing_new.lib)
 
 set(SOURCES
     src/meshIO.cpp
@@ -76,8 +77,6 @@ include_directories(./src/MeshOrient)
 
 add_executable(MeshConverter ${SOURCES})
 target_link_libraries(MeshConverter MeshOrient SRmesh_lib)
-
-
 
 #add_executable(SRmesh_exe src/Remesh/SRemesh_test)
 #target_link_libraries(SRmesh_exe SRmesh_lib)

@@ -28,6 +28,21 @@ int API_remesh_non_manifold(
 	const std::vector<int>& triangles,
 	const std::vector<int>& surfaceID,
 	const std::function<double(double, double, double)>& size_function,
+	std::vector<double>& points_out,
+	std::vector<int>& triangles_out,
+	std::vector<int>& surfaceID_out,
+	const bool b_write_vtk = true,
+	const std::string write_vtk_file_name = "remesh_debug.vtk"
+);
+
+int API_remesh_non_manifold(
+	const std::vector<double>& points,
+	const std::vector<int>& triangles,
+	const std::vector<int>& surfaceID,
+	const std::string size_vtk_file_name,
+	std::vector<double>& points_out,
+	std::vector<int>& triangles_out,
+	std::vector<int>& surfaceID_out,
 	const bool b_write_vtk = true,
 	const std::string write_vtk_file_name = "remesh_debug.vtk"
 );
@@ -54,10 +69,15 @@ public:
 	void setHmax(double hmax) { hmax_ = hmax; };
 
 private:
-	bool b_use_size_function_;
+	bool b_use_size_function_ = false;
 	std::function<double(double, double, double)> size_function_;
-	double hmin_;
-	double hmax_;
+	double hmin_ = 0.00001; // the min size
+	double hmax_ = 100000; // the max size
+
+	double target_length_ = 1;
+	double low_ratio_ = 4.0 / 5.0;
+	double high_ratio_ = 4.0 / 3.0;
+	
 };
 
 /*
@@ -78,6 +98,16 @@ public:
 	//     1  otherwise;
 	int checkInput(const std::vector<double>& points, const std::vector<int>& triangles, const std::vector<int>& surfaceID);
 	
+	// Get size function from size vtk file
+	// Input: 
+	//     filename: the size file in vtk format.
+	// Output: 
+	//     size_function: the size function from size file
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int getSizeFunction(const std::string filename, std::function<double(double, double, double)>& size_function);
+
 	//int initial(Mesh& mesh);
 	int addSizeFunction(std::function<double(double, double, double)> size_function);
 	int deleteSizeFunction();
@@ -97,11 +127,10 @@ private:
 
 	double calculateTargetEdgeLength(PolyMesh* mesh);
 
-
 private:
-	Mesh* mesh_;
+	Mesh* mesh_ = nullptr;
 	polymesh::PolyMesh half_mesh_;
-	AABB_Tree* abtree_;
+	AABB_Tree* abtree_ = nullptr;
 	RemeshParameter parameter_;
 };
 

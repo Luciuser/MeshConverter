@@ -867,15 +867,15 @@ int MESHIO::writeStlIn(std::string filename, const Mesh &mesh)
     f.close();
 }
 
-int MESHIO::getData(const std::vector<double>& points, const std::vector<int>& triangles, Mesh& mesh)
+int MESHIO::setData(const std::vector<double>& points, const std::vector<int>& triangles, Mesh& mesh)
 {
     int nFacets = triangles.size() / 3;
     std::vector<int> surfaceID(nFacets, 0);
 
-    return getData(points, triangles, surfaceID, mesh);
+    return setData(points, triangles, surfaceID, mesh);
 }
 
-int MESHIO::getData(const std::vector<double>& points, const std::vector<int>& triangles, const std::vector<int>& surfaceID, Mesh& mesh)
+int MESHIO::setData(const std::vector<double>& points, const std::vector<int>& triangles, const std::vector<int>& surfaceID, Mesh& mesh)
 {
     auto& M = mesh.Masks;
     auto& V = mesh.Vertex;
@@ -894,6 +894,68 @@ int MESHIO::getData(const std::vector<double>& points, const std::vector<int>& t
     for (int i = 0; i < nFacets; i++) {
         T.row(i) << triangles[3 * i], triangles[3 * i + 1], triangles[3 * i + 2];
         M.row(i) << surfaceID[i];
+    }
+
+    return 0;
+}
+
+int MESHIO::getData(const Mesh& mesh, std::vector<double>& points, std::vector<int>& triangles, std::vector<int>& surfaceID)
+{
+    auto& V = mesh.Vertex;
+    auto& T = mesh.Topo;
+    auto& M = mesh.Masks;
+
+    //std::cout << "points " << std::endl;
+    points.resize(V.rows() * 3);
+    for (int i = 0; i < V.rows(); i++) {
+        for (int j = 0; j < 3; j++) {
+            points[3 * i + j] = V(i, j);
+            //std::cout << points[3 * i + j] << std::endl;
+        }
+    }
+
+    //std::cout << "triangles " << std::endl;
+    triangles.resize(T.rows() * 3);
+    for (int i = 0; i < T.rows(); i++) {
+        for (int j = 0; j < 3; j++) {
+            triangles[3 * i + j] = T(i, j);
+            //std::cout << triangles[3 * i + j] << std::endl;
+        }
+    }
+
+    //std::cout << "surfaceID " << std::endl;
+    surfaceID.resize(M.size());
+    for (int i = 0; i < M.size(); i++) {
+        surfaceID[i] = M(i, 0);
+        //std::cout << surfaceID[i] << std::endl;
+    }
+
+    return 0;
+}
+
+int MESHIO::checkData(const Mesh& mesh)
+{
+    auto& V = mesh.Vertex;
+    auto& T = mesh.Topo;
+    auto& M = mesh.Masks;
+
+    std::cout << "points " << std::endl;
+    for (int i = 0; i < V.rows(); i++) {
+        std::cout << i << " ";
+        for (int j = 0; j < 3; j++) {
+            std::cout << V(i, j) << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "triangles " << std::endl;
+    for (int i = 0; i < T.rows(); i++) {
+        std::cout << i << " ";
+        for (int j = 0; j < 3; j++) {
+            std::cout << T(i, j) << " ";
+        }
+        std::cout << M(i);
+        std::cout << std::endl;
     }
 
     return 0;

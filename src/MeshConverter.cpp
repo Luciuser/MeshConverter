@@ -2,6 +2,7 @@
 #include "CLI11.hpp"
 #include "meshAlgorithm.h"
 #include "remesh.h"
+#include "Remesh/API_SRemesh.h"
 #include <iostream>
 
 #define _DEBUG_ 1
@@ -29,6 +30,7 @@ int main(int argc, char **argv)
 	bool resetOritationFaceid = false;
 	bool removebox = false;
 	bool bremesh = false;
+	std::string remeshFromSize;
 	bool fillhole = false;
 	bool normalize = false;
 	double DeleteDulPoint = -1;
@@ -51,6 +53,7 @@ int main(int argc, char **argv)
 	app.add_flag("-o", exportOBJ, "Write mesh in OBJ format.");
 	app.add_flag("--stl_in", exportStlIn, "Write mesh in stl.in format.");
 	app.add_flag("--remesh", bremesh, "Remesh");
+	app.add_option("--remesh_size", remeshFromSize, "Remesh with size function");
 	app.add_flag("--fillhole", fillhole, "Fill hole by topology");
 	app.add_flag("--shuffle", shuffleMark, "Shuffle surface_id for view clearly.");
 	app.add_option("--shuffle_num", shuffle_num, "Shuffle number is [1, 100].");
@@ -233,8 +236,36 @@ int main(int argc, char **argv)
 	//********* Remesh *********
 	if(bremesh)
 	{
-		MESHIO::resetOrientation(mesh);
-		MESHIO::remesh(mesh);
+		if (remeshFromSize.empty() == true) {
+			MESHIO::resetOrientation(mesh);
+			MESHIO::remesh(mesh);
+		}
+		else {
+			MESHIO::resetOrientation(mesh);
+
+			std::vector<double> points;
+			std::vector<int> triangles;
+			std::vector<int> surfaceID;
+			std::vector<double> points_out;
+			std::vector<int> triangles_out;
+			std::vector<int> surfaceID_out;
+			MESHIO::getData(mesh, points, triangles, surfaceID);
+
+			std::string remesh_debug_file = input_filename.substr(0, input_dotpos) + suffix + "_remesh_debug.vtk";
+			MESHIO::API_remesh_non_manifold(
+				points,
+				triangles,
+				surfaceID,
+				remeshFromSize,
+				points_out,
+				triangles_out,
+				surfaceID_out,
+				false,
+				remesh_debug_file
+			);
+
+			MESHIO::setData(points_out, triangles_out, surfaceID_out, mesh);
+		}
 	}
 	
 	//********* Create some box ********
