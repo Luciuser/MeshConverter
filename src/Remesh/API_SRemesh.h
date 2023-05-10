@@ -67,8 +67,10 @@ public:
 	double hmax() { return hmax_; }
 	void setHmin(double hmin) { hmin_ = hmin; };
 	void setHmax(double hmax) { hmax_ = hmax; };
+	void setTargetLength(double target_length) { target_length_ = target_length; };
 
 private:
+	// size
 	bool b_use_size_function_ = false;
 	std::function<double(double, double, double)> size_function_;
 	double hmin_ = 0.00001; // the min size
@@ -108,12 +110,28 @@ public:
 	//     1  otherwise;
 	int getSizeFunction(const std::string filename, std::function<double(double, double, double)>& size_function);
 
-	//int initial(Mesh& mesh);
+	// initial parameter from mesh
+	// Input:
+	//     mesh: point coordinates and triangular topology
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int initial(const Mesh& mesh);
+
 	int addSizeFunction(std::function<double(double, double, double)> size_function);
 	int deleteSizeFunction();
 
-	int remeshNonManifold(); //  core function
-	int remeshNonManifold(Mesh &mesh); //  core function
+	// get mesh data from PolyMesh class
+	// Output:
+	//     mesh: point coordinates and triangular topology
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int getMesh(Mesh& out);
+
+	int remesh(); //  core function
+	int remesh(const Mesh& mesh, Mesh& out);
+	int remesh(const Mesh &mesh, std::function<double(double, double, double)>& size_function, Mesh &out);
 		
 private:
 	// remesh operation
@@ -128,7 +146,7 @@ private:
 	double calculateTargetEdgeLength(PolyMesh* mesh);
 
 private:
-	Mesh* mesh_ = nullptr;
+	//Mesh* mesh_ = nullptr;
 	polymesh::PolyMesh half_mesh_;
 	AABB_Tree* abtree_ = nullptr;
 	RemeshParameter parameter_;

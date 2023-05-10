@@ -24,9 +24,9 @@ int MESHIO::API_remesh_non_manifold(
 
     Mesh mesh;
     MESHIO::setData(points, triangles, surfaceID, mesh);
-    RM.addSizeFunction(size_function);
 
-    RM.remeshNonManifold(mesh);
+    RM.addSizeFunction(size_function);
+    RM.remeshNonManifold(mesh, mesh);
     std::cout << "remesh end" << std::endl;
 
     MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
@@ -70,9 +70,6 @@ int MESHIO::API_remesh_non_manifold(
 
 MESHIO::RemeshParameter::RemeshParameter()
 {
-    //b_use_size_function_ = false;
-    //hmin_ = 0.00001;
-    //hmax_ = 100000;
     size_function_ = [](double x, double y, double z)->double {
         return 0.0;
     };
@@ -112,7 +109,7 @@ MESHIO::RemeshManager::RemeshManager()
 
 MESHIO::RemeshManager::~RemeshManager()
 {
-    mesh_ = nullptr;
+    //mesh_ = nullptr;
     if (abtree_ != nullptr) {
         delete abtree_;
         abtree_ = nullptr;
@@ -196,29 +193,29 @@ int MESHIO::RemeshManager::getSizeFunction(const std::string filename, std::func
     return 0;
 }
 
+int MESHIO::RemeshManager::initial(const Mesh& mesh)
+{
+    // mesh initial
+    half_mesh_.clear();
+    for (int i = 0; i < mesh.Vertex.rows(); ++i) {
+        half_mesh_.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));
+    }
+    for (int i = 0; i < mesh.Topo.rows(); ++i) {
+        auto t = std::vector<size_t>{ size_t(mesh.Topo(i, 0)), size_t(mesh.Topo(i, 1)), size_t(mesh.Topo(i, 2)) };
+        half_mesh_.addPolyFace(t);
+    }
 
-//int MESHIO::RemeshManager::initial(Mesh& mesh)
-//{
-//    // mesh initial
-//    for (int i = 0; i < mesh.Vertex.rows(); ++i) {
-//        half_mesh_.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));
-//    }
-//    for (int i = 0; i < mesh.Topo.rows(); ++i) {
-//        auto t = std::vector<size_t>{ size_t(mesh.Topo(i, 0)), size_t(mesh.Topo(i, 1)), size_t(mesh.Topo(i, 2)) };
-//        half_mesh_.addPolyFace(t);
-//    }
-//
-//    // AABB_tree initial
-//    get_AABB_tree(&half_mesh_, abtree_);
-//
-//    // parameter initial
-//    double target_edge_length;
-//    target_edge_length = calculateTargetEdgeLength(&half_mesh_) / 2.0;
-//    parameter_.setHmax(4.0 / 3.0 * target_edge_length);
-//    parameter_.setHmin(4.0 / 5.0 * target_edge_length);
-//    return 0;
-//}
+    // AABB_tree initial
+    if (abtree_ == nullptr) {
+        delete abtree_;
+    }
+    abtree_ = nullptr;
+    get_AABB_tree(&half_mesh_, abtree_);
 
+    // parameter initial
+    parameter_.setTargetLength(calculateTargetEdgeLength(&half_mesh_) / 2.0);
+    return 0;
+}
 
 int MESHIO::RemeshManager::addSizeFunction(std::function<double(double, double, double)> size_function)
 {
@@ -541,38 +538,8 @@ double MESHIO::RemeshManager::calculateTargetEdgeLength(PolyMesh* mesh)
     return target_edge_length;
 }
 
-int MESHIO::RemeshManager::remeshNonManifold(Mesh& mesh)
+int MESHIO::RemeshManager::getMesh(Mesh& mesh)
 {
-    //MESHIO::checkData(mesh);
-
-    // mesh initial
-    for (int i = 0; i < mesh.Vertex.rows(); ++i) {
-        half_mesh_.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));
-    }
-    for (int i = 0; i < mesh.Topo.rows(); ++i) {
-        auto t = std::vector<size_t>{ size_t(mesh.Topo(i, 0)), size_t(mesh.Topo(i, 1)), size_t(mesh.Topo(i, 2)) };
-        half_mesh_.addPolyFace(t);
-    }
-
-    // AABB_tree initial
-    get_AABB_tree(&half_mesh_, abtree_);
-
-    // parameter initial
-    //double target_edge_length;
-    //target_edge_length = calculateTargetEdgeLength(&half_mesh_) / 2.0;
-    //parameter_.setHmax(4.0 / 3.0 * target_edge_length);
-    //parameter_.setHmin(4.0 / 5.0 * target_edge_length);
-    
-    for (int i = 0; i < 10; i++)
-    {
-        std::cout << "Remesh in " << i << "th" << std::endl;
-        split_long_edges(&half_mesh_, parameter_);
-        collapse_short_edges(&half_mesh_, parameter_);
-        equalize_valences(&half_mesh_);
-        tangential_relaxation(&half_mesh_);
-        project_to_surface(&half_mesh_, abtree_);
-    }
-
     mesh.Vertex.resize(half_mesh_.numVertices(), 3);
     int v_id = 0, f_id = 0;
     for (VertexIter iter = half_mesh_.vertices_begin(); iter != half_mesh_.vertices_end(); iter++) {
@@ -594,7 +561,35 @@ int MESHIO::RemeshManager::remeshNonManifold(Mesh& mesh)
     return 0;
 }
 
-int MESHIO::RemeshManager::remeshNonManifold()
+int MESHIO::RemeshManager::remesh(const Mesh& mesh, Mesh& out)
 {
+    initial(mesh);
+    remesh();
+    getMesh(out);
+
+    return 0;
+}
+
+int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double, double, double)>& size_function, Mesh& out)
+{
+    initial(mesh);
+    addSizeFunction(size_function);
+    remesh();
+    getMesh(out);
+
+    return 0;
+}
+
+int MESHIO::RemeshManager::remesh()
+{
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << "Remesh in " << i << "th" << std::endl;
+        split_long_edges(&half_mesh_, parameter_);
+        collapse_short_edges(&half_mesh_, parameter_);
+        equalize_valences(&half_mesh_);
+        tangential_relaxation(&half_mesh_);
+        project_to_surface(&half_mesh_, abtree_);
+    }
     return 0;
 }
