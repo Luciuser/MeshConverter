@@ -331,7 +331,7 @@ void MESHIO::remesh(Mesh& mesh){
     std::cout << i << "th" << std::endl;
 		split_long_edges(&half_mesh, high);
 		collapse_short_edges(&half_mesh, high, low);
-    equalize_valences(&half_mesh);
+        equalize_valences(&half_mesh);
 		tangential_relaxation(&half_mesh);
 		project_to_surface(&half_mesh, abtree);
 	}

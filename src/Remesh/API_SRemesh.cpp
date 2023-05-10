@@ -1,5 +1,6 @@
 #include "API_SRemesh.h"
 
+#include "meshAlgorithm.h"
 #include "tiger_sizingfunction.h"
 
 using namespace MESHIO::polymesh;
@@ -12,6 +13,7 @@ int MESHIO::API_remesh_non_manifold(
     std::vector<double>& points_out,
     std::vector<int>& triangles_out,
     std::vector<int>& surfaceID_out,
+    const bool b_split,
     const bool b_write_vtk,
     const std::string write_vtk_file_name)
 {
@@ -25,15 +27,55 @@ int MESHIO::API_remesh_non_manifold(
     Mesh mesh;
     MESHIO::setData(points, triangles, surfaceID, mesh);
 
-    RM.addSizeFunction(size_function);
-    RM.remesh(mesh, mesh);
-    std::cout << "remesh end" << std::endl;
+    if (b_split) {
+        std::vector<Mesh> split_mesh_list;
+        MESHIO::splitDifferentFaces(mesh, split_mesh_list);
 
-    MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
+        RM.addSizeFunction(size_function);
+        for (int i = 0; i < split_mesh_list.size(); i++) {
+            if (i != 10) {
+                continue;
+            }
+            std::string before_write_vtk_file_name = write_vtk_file_name;
+            before_write_vtk_file_name += "before_10.vtk";
+            MESHIO::writeVTK(before_write_vtk_file_name, split_mesh_list[i], "surface_id");
 
-    if (b_write_vtk) {
-        std::cout << "write file to " << write_vtk_file_name << std::endl;
-        MESHIO::writeVTK(write_vtk_file_name, mesh, "surface_id");
+            std::cout << i << "th part " << std::endl;
+            MESHIO::resetOrientation(split_mesh_list[i]);
+            RM.remesh(split_mesh_list[i], split_mesh_list[i]);
+            std::cout << "remesh end" << std::endl;
+
+            if (b_write_vtk) {
+                std::cout << "write file to " << write_vtk_file_name << std::endl;
+                std::string new_write_vtk_file_name = write_vtk_file_name;
+                new_write_vtk_file_name += std::to_string(i) + ".vtk";
+                MESHIO::writeVTK(new_write_vtk_file_name, split_mesh_list[i], "surface_id");
+            }
+
+        }
+        MESHIO::addMesh(split_mesh_list, mesh);
+        MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
+        //MESHIO::repair(mesh);
+
+        MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
+
+        if (b_write_vtk) {
+            std::cout << "write file to " << write_vtk_file_name << std::endl;
+            MESHIO::writeVTK(write_vtk_file_name, mesh, "surface_id");
+        }
+    }
+    else {
+        MESHIO::resetOrientation(mesh);
+        RM.addSizeFunction(size_function);
+        RM.remesh(mesh, mesh);
+        std::cout << "remesh end" << std::endl;
+
+        MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
+
+        if (b_write_vtk) {
+            std::cout << "write file to " << write_vtk_file_name << std::endl;
+            MESHIO::writeVTK(write_vtk_file_name, mesh, "surface_id");
+        }
     }
 
     return 0;
@@ -47,6 +89,7 @@ int MESHIO::API_remesh_non_manifold(
     std::vector<double>& points_out,
     std::vector<int>& triangles_out,
     std::vector<int>& surfaceID_out,
+    const bool b_split,
     const bool b_write_vtk, 
     const std::string write_vtk_file_name)
 {
@@ -63,6 +106,7 @@ int MESHIO::API_remesh_non_manifold(
         points_out,
         triangles_out,
         surfaceID_out,
+        b_split,
         b_write_vtk, 
         write_vtk_file_name);
 }
@@ -404,7 +448,7 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh)
         if ((!mesh->isBoundary(v4)) && (mesh->valence(v4) + 1 <= 3))
             continue;
 
-        if (deviation_pre > deviation_post || (*MinAngle_before) < 1)
+        if (deviation_pre > deviation_post || (*MinAngle_after) > (*MinAngle_before))
             mesh->flipEdgeTriangle(*e_it);
     }
 
@@ -582,9 +626,9 @@ int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double,
 
 int MESHIO::RemeshManager::remesh()
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 1; i++)
     {
-        std::cout << "Remesh in " << i << "th" << std::endl;
+        std::cout << "    Remesh in " << i << "th" << std::endl;
         split_long_edges(&half_mesh_, parameter_);
         collapse_short_edges(&half_mesh_, parameter_);
         equalize_valences(&half_mesh_);

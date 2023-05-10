@@ -933,6 +933,54 @@ int MESHIO::getData(const Mesh& mesh, std::vector<double>& points, std::vector<i
     return 0;
 }
 
+int MESHIO::addMesh(const std::vector<Mesh>& mesh_list, Mesh& mesh)
+{
+    if (mesh_list.size() == 0) {
+        std::cout << "Warning: No mesh_list input." << std::endl;
+        return 1;
+    }
+
+    auto& V = mesh.Vertex;
+    auto& T = mesh.Topo;
+    auto& M = mesh.Masks;
+
+    int nPoints = 0;
+    int nTopo = 0;
+
+    int nType = mesh_list[0].Topo.cols();
+    for (int i = 0; i < mesh_list.size(); i++) {
+        nPoints += mesh_list[i].Vertex.rows();
+        nTopo += mesh_list[i].Topo.rows();
+    }
+
+    V.resize(nPoints, 3);
+    T.resize(nTopo, nType);
+    M.resize(nTopo, 1);
+
+    int pi = 0;
+    int ti = 0;
+    int sum = 0;
+    for (int i = 0; i < mesh_list.size(); i++) {
+        for (int j = 0; j < mesh_list[i].Vertex.rows(); j++) {
+            for (int k = 0; k < 3; k++) {
+                V(pi, k) = mesh_list[i].Vertex(j, k);
+            }
+            pi++;
+        }
+        for (int j = 0; j < mesh_list[i].Topo.rows(); j++) {
+            for (int k = 0; k < nType; k++) {
+                T(ti, k) = mesh_list[i].Topo(j, k) + sum;
+            }
+            M(ti) = mesh_list[i].Masks(j);
+            ti++;
+        }
+
+        sum += mesh_list[i].Vertex.rows();
+    }
+
+    return 0;
+}
+
 int MESHIO::checkData(const Mesh& mesh)
 {
     auto& V = mesh.Vertex;

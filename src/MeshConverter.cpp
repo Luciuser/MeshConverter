@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 			MESHIO::remesh(mesh);
 		}
 		else {
-			MESHIO::resetOrientation(mesh);
+			//MESHIO::resetOrientation(mesh);
 
 			std::vector<double> points;
 			std::vector<int> triangles;
@@ -250,6 +250,11 @@ int main(int argc, char **argv)
 			std::vector<int> triangles_out;
 			std::vector<int> surfaceID_out;
 			MESHIO::getData(mesh, points, triangles, surfaceID);
+
+			if (surfaceID.size() == 0) {
+				std::cout << "Warnning: No surfaceID. Every triangle will be marked as 0" << std::endl;
+				surfaceID.resize(triangles.size() / 3, 0);
+			}
 
 			std::string remesh_debug_file = input_filename.substr(0, input_dotpos) + suffix + "_remesh_debug.vtk";
 			MESHIO::API_remesh_non_manifold(
@@ -260,6 +265,7 @@ int main(int argc, char **argv)
 				points_out,
 				triangles_out,
 				surfaceID_out,
+				false,
 				false,
 				remesh_debug_file
 			);

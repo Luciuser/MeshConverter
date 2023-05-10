@@ -31,6 +31,7 @@ int API_remesh_non_manifold(
 	std::vector<double>& points_out,
 	std::vector<int>& triangles_out,
 	std::vector<int>& surfaceID_out,
+	const bool b_split = true,
 	const bool b_write_vtk = true,
 	const std::string write_vtk_file_name = "remesh_debug.vtk"
 );
@@ -43,6 +44,7 @@ int API_remesh_non_manifold(
 	std::vector<double>& points_out,
 	std::vector<int>& triangles_out,
 	std::vector<int>& surfaceID_out,
+	const bool b_split = true,
 	const bool b_write_vtk = true,
 	const std::string write_vtk_file_name = "remesh_debug.vtk"
 );

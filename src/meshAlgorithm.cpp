@@ -677,6 +677,127 @@ bool MESHIO::removeDulplicatePoint(Eigen::MatrixXd& V, Eigen::MatrixXi& F, doubl
 
 }
 
+int MESHIO::splitDifferentFaces(const Mesh& mesh, std::vector<Mesh> &meshlist)
+{
+	auto& V = mesh.Vertex;
+	auto& T = mesh.Topo;
+	auto& M = mesh.Masks;
+
+	int nPoints = V.rows();
+	int nFacets = T.rows();
+	int nType = T.cols();
+
+	// set the face id of all element is 0 if there is no surface id
+	std::vector<int> faceIDs(nFacets, 0);
+	if (M.rows() != 0) {
+		for (int i = 0; i < nFacets; i++) {
+			faceIDs[i] = M(i, 0);
+		}
+	}
+
+	// make adjacent information
+	struct AdjacentEdge
+	{
+		// point1 < point2
+		int point1;
+		int point2;
+
+		AdjacentEdge(int p1, int p2) {
+			if (p1 < p2) {
+				point1 = p1;
+				point2 = p2;
+			}
+			else {
+				point1 = p2;
+				point2 = p1;
+			}
+		}
+
+		inline bool operator==(AdjacentEdge const& p) const {
+			return point1 == p.point1 && point2 == p.point2;
+		}
+	};
+
+	struct AdjacentEdgeHash {
+		std::size_t operator()(const AdjacentEdge& node) const {
+			return std::hash<int>()(node.point1) ^ std::hash<int>()(node.point2);
+		}
+	};
+	std::unordered_map<AdjacentEdge, std::vector<int>, AdjacentEdgeHash> edge_adjacent_topology; // adjacent element for every edge
+	//std::vector<std::vector<int>> adjacent_topology; // adjacent element for every mesh
+	for (int i = 0; i < nFacets; i++) {
+		for (int j = 0; j < nType; j++) {
+			int k = (j + 1) % nType;
+			AdjacentEdge edge(T(i, j), T(i, k));
+			edge_adjacent_topology[edge].push_back(i);
+		}
+	}
+
+	// dfs
+	std::vector<int> flags(nFacets, 0); // dfs flag
+	std::vector<std::vector<int>> meshlist_topology; // for every mesh which splitted, save its topology
+	std::vector<int> meshlist_faceID; // for every mesh which splitted, save its face id
+	for (int i = 0; i < nFacets; i++) {
+		if (flags[i] == 0) {
+			std::vector<int> topo;
+			std::queue<int> topology_index_queue;
+			topology_index_queue.push(i);
+
+			while (true)
+			{
+				if (topology_index_queue.size() == 0) {
+					break;
+				}
+
+				int top = topology_index_queue.front();
+				topology_index_queue.pop();
+				if (flags[top] == 1) {
+					continue;
+				}
+				flags[top] = 1;
+				for (int j = 0; j < nType; j++) {
+					topo.push_back(T(top, j));
+				}
+				
+				for (int j = 0; j < nType; j++) {
+					int k = (j + 1) % nType;
+					AdjacentEdge edge(T(top, j), T(top, k));
+					if (edge_adjacent_topology[edge].size()>2) {
+						// no-manifold
+						continue;
+					}
+					for (int ii = 0; ii < edge_adjacent_topology[edge].size(); ii++) {
+						int adj = edge_adjacent_topology[edge][ii];
+						if (M(adj) == M(top)) {
+							// dfs if two triangles are in same face
+							topology_index_queue.push(adj);
+						}
+					}
+				}
+			}
+
+			meshlist_topology.push_back(topo);
+			meshlist_faceID.push_back(M(i));
+		}
+	}
+
+	// split mesh
+	std::vector<double> points(nPoints * 3);
+	for (int i = 0; i < nPoints; i++) {
+		for (int j = 0; j < 3; j++) {
+			points[3 * i + j] = V(i, j);
+		}
+	}
+	for (int i = 0; i < meshlist_topology.size(); i++) {
+		std::vector<int> faceIDs_new(meshlist_topology[i].size(), meshlist_faceID[i]);
+		Mesh mesh_new;
+		MESHIO::setData(points, meshlist_topology[i], faceIDs_new, mesh_new);
+		meshlist.push_back(mesh_new);
+	}
+
+	return 0;
+}
+
 void MESHIO::dfs_get_loop2(int cur, int pre, std::vector<bool>& vis, std::vector<std::vector<int>>& G, std::vector<int>& path, std::vector<std::vector<int>>& loop_lst)
 {
 	if(vis[cur])

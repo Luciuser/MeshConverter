@@ -29,6 +29,15 @@ namespace MESHIO{
 	bool topoFillHole(Mesh& mesh);
 	bool Normalize(Mesh & mesh);
 
+	// split origin mesh to several faces by face id and no-manifold feature
+	// input:
+	//     mesh: complicate mesh
+	// Output:
+	//     meshlist: several meshes
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int splitDifferentFaces(const Mesh& mesh, std::vector<Mesh> &meshlist);
 
   // called by the algorithm above.
 	void dfs_get_loop2(
