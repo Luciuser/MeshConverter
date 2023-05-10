@@ -131,6 +131,14 @@ public:
 	//     1  otherwise;
 	int getMesh(Mesh& out);
 
+	// repir mesh
+	// Output:
+	//     mesh: point coordinates and triangular topology
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int repair(Mesh& mesh, double eps = 1e-6);
+
 	int remesh(); //  core function
 	int remesh(const Mesh& mesh, Mesh& out);
 	int remesh(const Mesh &mesh, std::function<double(double, double, double)>& size_function, Mesh &out);

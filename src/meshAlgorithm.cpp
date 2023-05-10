@@ -12,6 +12,7 @@
 
 
 #include <set>
+#include <unordered_set>
 #include <unordered_map>
 #include <cmath>
 #include <algorithm> // std::move_backward
@@ -723,6 +724,7 @@ int MESHIO::splitDifferentFaces(const Mesh& mesh, std::vector<Mesh> &meshlist)
 			return std::hash<int>()(node.point1) ^ std::hash<int>()(node.point2);
 		}
 	};
+
 	std::unordered_map<AdjacentEdge, std::vector<int>, AdjacentEdgeHash> edge_adjacent_topology; // adjacent element for every edge
 	//std::vector<std::vector<int>> adjacent_topology; // adjacent element for every mesh
 	for (int i = 0; i < nFacets; i++) {
@@ -794,6 +796,181 @@ int MESHIO::splitDifferentFaces(const Mesh& mesh, std::vector<Mesh> &meshlist)
 		MESHIO::setData(points, meshlist_topology[i], faceIDs_new, mesh_new);
 		meshlist.push_back(mesh_new);
 	}
+
+	return 0;
+}
+
+int MESHIO::removeHangingPoint(Mesh& mesh)
+{
+	auto& V = mesh.Vertex;
+	auto& T = mesh.Topo;
+	auto& M = mesh.Masks;
+
+	std::vector<int> hanging_points(V.rows(), 1); // 1 means hanging and 0 not 
+	for (int i = 0; i < T.rows(); i++) {
+		for (int j = 0; j < T.cols(); j++) {
+			int index = T(i, j);
+			hanging_points[index] = 0;
+		}
+	}
+
+	std::vector<int>id_id(V.rows(), -1);
+	int save_point_num = 0;
+	for (int i = 0; i < hanging_points.size(); i++) {
+		if (hanging_points[i] == 0) {
+			id_id[i] = save_point_num;
+			save_point_num++;
+		}
+	}
+
+	// build new V
+	Eigen::MatrixXd V_new;
+	V_new.resize(save_point_num, 3);
+	int vi = 0;
+	for (int i = 0; i < hanging_points.size(); i++) {
+		if (hanging_points[i] == 0) {
+			for (int j = 0; j < 3; j++) {
+				V_new(vi, j) = V(i, j);
+			}
+			vi++;
+		}
+	}
+	mesh.Vertex = V_new;
+
+	// build new T
+	for (int i = 0; i < T.rows(); i++) {
+		for (int j = 0; j < T.cols(); j++) {
+			T(i, j) = id_id[T(i, j)];
+		}
+	}
+
+	std::cout << "Remove " << V.rows() - save_point_num << " hanging points" << std::endl;
+
+	return 0;
+}
+
+int MESHIO::removeDulplicateTopo(Mesh& mesh)
+{
+	auto& T = mesh.Topo;
+	auto& M = mesh.Masks;
+
+	struct TopoHashStuct
+	{
+		// save all points
+		std::vector<int> points;
+
+		TopoHashStuct(const std::vector<int> &V) {
+			points.resize(V.size());
+			for (int i = 0; i < V.size(); i++) {
+				points[i] = V[i];
+			}
+			std::sort(points.begin(), points.end());
+		}
+
+		inline bool operator==(TopoHashStuct const& T) const {
+			if (points.size() != T.points.size()) {
+				return false;
+			}
+			else {
+				for (int i = 0; i < points.size(); i++) {
+					if (points[i] != T.points[i]) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+	};
+
+	struct TopoHash {
+		std::size_t operator()(const TopoHashStuct& node) const {
+			return std::hash<int>()(node.points[0]) ^ std::hash<int>()(node.points[1]);
+		}
+	};
+
+	int save_topo_num = 0;
+	std::vector<int> delete_topo(T.rows(), 0);
+	std::vector<int> temp_topo(T.cols(), 0);
+	std::unordered_map<TopoHashStuct, int, TopoHash> topo_map;
+	for (int i = 0; i < T.rows(); i++) {
+		for (int j = 0; j < T.cols(); j++) {
+			temp_topo[j] = T(i, j);
+		}
+		TopoHashStuct tempHashStuct(temp_topo);
+		if (topo_map.count(tempHashStuct) == 0) {
+			save_topo_num++;
+			topo_map[tempHashStuct]++;
+		}
+		else {
+			delete_topo[i] = 1;
+		}
+	}
+
+	Eigen::MatrixXi T_new;
+	Eigen::MatrixXi M_new;
+	T_new.resize(save_topo_num, 3);
+	M_new.resize(save_topo_num, 1);
+
+	int ti = 0;
+	for (int i = 0; i < T.rows(); i++) {
+		if (delete_topo[i] == 0) {
+			for (int j = 0; j < T.cols(); j++) {
+				T_new(ti, j) = T(i, j);
+			}
+			M_new(ti) = M(ti);
+			ti++;
+		}
+	}
+
+	mesh.Topo = T_new;
+	mesh.Masks = M_new;
+
+	std::cout << "Remove " << T.rows() - save_topo_num << " duplicate topo" << std::endl;
+
+	return 0;
+}
+
+int MESHIO::removeDegradationTopo(Mesh& mesh)
+{
+	auto& T = mesh.Topo;
+	auto& M = mesh.Masks;
+
+	int save_topo_num = 0;
+	std::vector<int> delete_topo(T.rows(), 0);
+	for (int i = 0; i < T.rows(); i++) {
+		std::unordered_set<int> points;
+		for (int j = 0; j < T.cols(); j++) {
+			int index = T(i, j);
+			if (points.count(index) != 0) {
+				delete_topo[i] = 1;
+				break;
+			}
+		}
+		if (delete_topo[i] == 0) {
+			save_topo_num++;
+		}
+	}
+
+	Eigen::MatrixXi T_new;
+	Eigen::MatrixXi M_new;
+	T_new.resize(save_topo_num, 3);
+	M_new.resize(save_topo_num, 1);
+
+	int ti = 0;
+	for (int i = 0; i < T.rows(); i++) {
+		if (delete_topo[i] == 0) {
+			for (int j = 0; j < T.cols(); j++) {
+				T_new(ti, j) = T(i, j);
+			}
+			M_new(ti) = M(ti);
+			ti++;
+		}
+	}
+
+	mesh.Topo = T_new;
+	mesh.Masks = M_new;
+
+	std::cout << "Remove " << T.rows() - save_topo_num << " degradation topo" << std::endl;
 
 	return 0;
 }

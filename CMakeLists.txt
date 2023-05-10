@@ -44,6 +44,8 @@ set(SREMESH_SOURCES
     src/meshAlgorithm.cpp
     src/Remesh/API_SRemesh.h
     src/Remesh/API_SRemesh.cpp
+    src/Remesh/AABB.h
+    src/Remesh/AABB.cc
     src/Remesh/tiger_sizingfunction.h
     
     src/Halfedge/PolyMesh_Base.cpp

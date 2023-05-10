@@ -39,6 +39,30 @@ namespace MESHIO{
 	//     1  otherwise;
 	int splitDifferentFaces(const Mesh& mesh, std::vector<Mesh> &meshlist);
 
+	// remove all hanging points in mesh
+	// input:
+	//     mesh: mesh which has hanging point
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int removeHangingPoint(Mesh& mesh);
+
+	// remove all dulplicate topo in mesh
+	// input:
+	//     mesh: mesh which has dulplicate topo
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int removeDulplicateTopo(Mesh& mesh);
+
+	// remove all degradation topo in mesh
+	// input:
+	//     mesh: mesh which has degradation topo
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int removeDegradationTopo(Mesh& mesh);
+
   // called by the algorithm above.
 	void dfs_get_loop2(
   int cur, int pre, 

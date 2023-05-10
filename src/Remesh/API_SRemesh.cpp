@@ -27,11 +27,12 @@ int MESHIO::API_remesh_non_manifold(
     Mesh mesh;
     MESHIO::setData(points, triangles, surfaceID, mesh);
 
+    RM.addSizeFunction(size_function);
+
     if (b_split) {
         std::vector<Mesh> split_mesh_list;
         MESHIO::splitDifferentFaces(mesh, split_mesh_list);
 
-        RM.addSizeFunction(size_function);
         for (int i = 0; i < split_mesh_list.size(); i++) {
             if (i != 10) {
                 continue;
@@ -42,6 +43,7 @@ int MESHIO::API_remesh_non_manifold(
 
             std::cout << i << "th part " << std::endl;
             MESHIO::resetOrientation(split_mesh_list[i]);
+
             RM.remesh(split_mesh_list[i], split_mesh_list[i]);
             std::cout << "remesh end" << std::endl;
 
@@ -54,7 +56,9 @@ int MESHIO::API_remesh_non_manifold(
 
         }
         MESHIO::addMesh(split_mesh_list, mesh);
-        MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
+
+        RM.repair(mesh);
+        //MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
         //MESHIO::repair(mesh);
 
         MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
@@ -65,10 +69,15 @@ int MESHIO::API_remesh_non_manifold(
         }
     }
     else {
+        //MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
+        //MESHIO::repair(mesh);
+        RM.repair(mesh, 1e-4);
         MESHIO::resetOrientation(mesh);
-        RM.addSizeFunction(size_function);
+
         RM.remesh(mesh, mesh);
         std::cout << "remesh end" << std::endl;
+
+        RM.repair(mesh);
 
         MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
 
@@ -602,6 +611,15 @@ int MESHIO::RemeshManager::getMesh(Mesh& mesh)
         mesh.Masks(f_id++, 0) = 0;
     }
 
+    return 0;
+}
+
+int MESHIO::RemeshManager::repair(Mesh& mesh, double eps)
+{
+    MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, eps);
+    MESHIO::removeDegradationTopo(mesh);
+    MESHIO::removeDulplicateTopo(mesh);
+    MESHIO::removeHangingPoint(mesh);
     return 0;
 }
 
