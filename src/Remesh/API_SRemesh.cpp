@@ -64,9 +64,8 @@ int MESHIO::API_remesh_non_manifold(
         // parameter
         RM.addSizeFunction(size_function);
 
-        double hmax, hmin, average;
-        MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
-        aabb::Tree aabbTree(3);
+        // intesecetion aabb treee
+        RM.buildAABBTree(mesh);
 
         // mesh repair
         RM.repair(mesh, 1e-4);
@@ -119,9 +118,9 @@ int MESHIO::API_remesh_non_manifold(
             //MESHIO::writeVTK(before_write_vtk_file_name, split_mesh_list[i], "surface_id");
 
             // local parameter
-            double hmax, hmin, average;
-            MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
-            aabb::Tree aabbTree(3);
+
+            // intesecetion aabb treee
+            RM.buildAABBTree(mesh);
 
             // core remesh
             std::cout << "remesh" << i << "th part " << std::endl;
@@ -198,6 +197,10 @@ MESHIO::RemeshManager::~RemeshManager()
     if (abtree_ != nullptr) {
         delete abtree_;
         abtree_ = nullptr;
+    }
+    if (aabbTree_ != nullptr) {
+        delete aabbTree_;
+        aabbTree_ = nullptr;
     }
 }
 
@@ -655,10 +658,27 @@ int MESHIO::RemeshManager::repair(Mesh& mesh, double eps)
     return 0;
 }
 
-int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree& tree)
+int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh)
 {
+    return buildAABBTree(mesh, aabbTree_);
+}
 
+int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree* tree)
+{
+    // build AABB tree
+    double hmax, hmin, average;
+    MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
+    tree = new aabb::Tree(3, hmin * 0.0001);
 
+    // set data in
+    int nFacet = mesh.Topo.rows();
+
+    for (int i = 0; i < nFacet; i++) {
+        std::vector<double> lower;
+        std::vector<double> upper;
+        MESHIO::calculateBoundingBoxForOneElement(mesh, i, lower, upper);
+        tree->insertParticle(i, lower, upper);
+    }
 
     return 0;
 }

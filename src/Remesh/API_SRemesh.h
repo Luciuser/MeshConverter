@@ -149,12 +149,24 @@ public:
 	// Return:
 	//     0  if success;
 	//     1  otherwise;
-	int buildAABBTree(Mesh& mesh, aabb::Tree &tree);
+	int buildAABBTree(Mesh& mesh, aabb::Tree *tree);
+
+	// build AABB tree for check swap operation valid
+	// Input:
+	//     mesh: point coordinates and triangular topology
+	// Output:
+	//     tree: AABB tree
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int buildAABBTree(Mesh& mesh);
 
 	int remesh(); //  core function
 	int remesh(const Mesh& mesh, Mesh& out);
 	int remesh(const Mesh &mesh, std::function<double(double, double, double)>& size_function, Mesh &out);
 		
+	aabb::Tree* getAABBTree() { return aabbTree_; }
+
 private:
 	// remesh operation
 	void split_long_edges(PolyMesh* mesh, RemeshParameter &parameter);
@@ -171,6 +183,7 @@ private:
 	//Mesh* mesh_ = nullptr;
 	polymesh::PolyMesh half_mesh_;
 	AABB_Tree* abtree_ = nullptr; // polygen mesh use
+	aabb::Tree* aabbTree_ = nullptr; // intersection use
 	RemeshParameter parameter_;
 };
 

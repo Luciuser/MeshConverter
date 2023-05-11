@@ -51,13 +51,13 @@ namespace MESHIO{
 
 
 	// split origin mesh to several faces by face id and no-manifold feature
-// input:
-//     mesh: complicate mesh
-// Output:
-//     meshlist: several meshes
-// Return:
-//     0  if success;
-//     1  otherwise;
+	// input:
+	//     mesh: complicate mesh
+	// Output:
+	//     meshlist: several meshes
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
 	int splitDifferentFaces(const Mesh& mesh, std::vector<Mesh>& meshlist);
 
 	// remove all hanging points in mesh
@@ -95,6 +95,18 @@ namespace MESHIO{
 	//     0  if success;
 	//     1  otherwise;
 	int calculateEdgesLength(const Mesh& mesh, double &hmax, double &hmin, double &average);
+
+	// for one element, get the AABB bounding box.
+	// input:
+	//     mesh: 
+	//     index: the element in mesh
+	// output:
+	//     lower: the lower position of AABB bounding box
+	//     upper: the upper position of AABB bounding box
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int calculateBoundingBoxForOneElement(const Mesh& mesh, const int index, std::vector<double> &lower, std::vector<double> &upper);
 
 }
 

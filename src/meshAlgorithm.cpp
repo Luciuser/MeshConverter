@@ -1014,6 +1014,45 @@ int MESHIO::calculateEdgesLength(const Mesh& mesh, double& hmax, double& hmin, d
 	return 0;
 }
 
+int MESHIO::calculateBoundingBoxForOneElement(const Mesh& mesh, const int index, std::vector<double>& lower, std::vector<double>& upper)
+{
+	auto& V = mesh.Vertex;
+	auto& T = mesh.Topo;
+
+	int nPoint = V.rows();
+	int nTopo = T.rows();
+
+	if (T.cols() == 0) {
+		std::cout << "Error: can not find mesh" << std::endl;
+		return -1;
+	}
+
+	if (index < 0 || index >= nTopo) {
+		std::cout << "Error: find a error topo index. " << std::endl;
+		return -2;
+	}
+
+	lower.resize(3, numeric_limits<double>::max());
+	upper.resize(3, numeric_limits<double>::min());
+	for (int i = 0; i < T.cols(); i++) {
+		int vid = T(index, i);
+		if (vid < 0 || vid >= nPoint) {
+			std::cout << "Error: find a error vertex index in topo " << index << std::endl;
+			return -2;
+		}
+		for (int j = 0; j < 3; j++) {
+			if (lower[j] > V(vid, j)) {
+				lower[j] = V(vid, j);
+			}
+			if (upper[j] < V(vid, j)) {
+				upper[j] = V(vid, j);
+			}
+		}
+	}
+
+	return 0;
+}
+
 void MESHIO::dfs_get_loop2(int cur, int pre, std::vector<bool>& vis, std::vector<std::vector<int>>& G, std::vector<int>& path, std::vector<std::vector<int>>& loop_lst)
 {
 	if(vis[cur])
