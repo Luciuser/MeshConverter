@@ -172,7 +172,7 @@ private:
 	void split_long_edges(PolyMesh* mesh, RemeshParameter &parameter);
 	void collapse_short_edges(PolyMesh* mesh, RemeshParameter &parameter);
 	void delete_lowdegree(PolyMesh* mesh);
-	void equalize_valences(PolyMesh* mesh);
+	void equalize_valences(PolyMesh* mesh, aabb::Tree* aabbTree_);
 	void tangential_relaxation(PolyMesh* mesh);
 	void project_to_surface(PolyMesh* mesh, AABB_Tree* abtree);
 	void get_AABB_tree(PolyMesh* mesh, AABB_Tree*& abtree);

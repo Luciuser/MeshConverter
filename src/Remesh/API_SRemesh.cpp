@@ -396,7 +396,7 @@ void MESHIO::RemeshManager::delete_lowdegree(PolyMesh* mesh)
     }
 }
 
-void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh)
+void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, aabb::Tree* aabbTree_)
 {
     std::vector<int> target_valence;
     int deviation_pre, deviation_post;
@@ -425,12 +425,12 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh)
         /*angle judge*/
         // *** notation(original configuration)
         //
-        //                        1        4
+        //                        1            4
         //                       *---------*
-        //						/ \		  /
-        //					   /   \  E2 /
-        //					  /     \   /
-        //				     /	E1	 \ /
+        //						/ \		        /
+        //					   /    \  E2  /
+        //					  /       \    /
+        //				     /	E1	    \ /
         //				    *---------*
         //                  3         2
         //
@@ -474,6 +474,20 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh)
 
         auto MinAngle_after = std::min_element(AfterSwap.begin(), AfterSwap.end());
 
+        // if the topology will make intersection like this, this operation shouble be banned
+        //
+        //                    1            
+        //                    *
+        //			        /  |  \ 
+        //			      /    |    \
+        //		        /     *      \
+        //            /    / 2 \    \
+        //           /  /           \ \
+        //         * 3               4*
+        if (a123 + a421 > 180 || a312 + a214 > 180) {
+            continue;
+        }
+
         // if the min angle get smaller after flip, this operation should be banned!
         if ((*MinAngle_after) < (*MinAngle_before))
             continue;
@@ -492,7 +506,7 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh)
         if ((!mesh->isBoundary(v4)) && (mesh->valence(v4) + 1 <= 3))
             continue;
 
-        if (deviation_pre > deviation_post || (*MinAngle_after) > (*MinAngle_before))
+        if (deviation_pre > deviation_post)
             mesh->flipEdgeTriangle(*e_it);
     }
 
@@ -709,7 +723,7 @@ int MESHIO::RemeshManager::remesh()
         std::cout << "    Remesh in " << i << "th" << std::endl;
         split_long_edges(&half_mesh_, parameter_);
         collapse_short_edges(&half_mesh_, parameter_);
-        equalize_valences(&half_mesh_);
+        equalize_valences(&half_mesh_, aabbTree_);
         tangential_relaxation(&half_mesh_);
         project_to_surface(&half_mesh_, abtree_);
     }
