@@ -9,7 +9,7 @@ int MESHIO::API_remesh_non_manifold(
     const std::vector<double>& points,
     const std::vector<int>& triangles,
     const std::vector<int>& surfaceID,
-    const std::function<double(double, double, double)>& size_function,
+    const std::string size_vtk_file_name,
     std::vector<double>& points_out,
     std::vector<int>& triangles_out,
     std::vector<int>& surfaceID_out,
@@ -18,67 +18,130 @@ int MESHIO::API_remesh_non_manifold(
     const std::string write_vtk_file_name)
 {
     RemeshManager RM;
+    std::function<double(double, double, double)> size_function;
 
-    if (RM.checkInput(points, triangles, surfaceID) != 0) {
-        return -1;
-    }
-    std::cout << "check input end" << std::endl;
+    RM.getSizeFunction(size_vtk_file_name, size_function);
 
-    Mesh mesh;
-    MESHIO::setData(points, triangles, surfaceID, mesh);
+    return API_remesh_non_manifold(
+        points,
+        triangles,
+        surfaceID,
+        size_function,
+        points_out,
+        triangles_out,
+        surfaceID_out,
+        b_split,
+        b_write_vtk,
+        write_vtk_file_name);
+}
 
-    RM.addSizeFunction(size_function);
+int MESHIO::API_remesh_non_manifold(
+    const std::vector<double>& points,
+    const std::vector<int>& triangles,
+    const std::vector<int>& surfaceID,
+    const std::function<double(double, double, double)>& size_function,
+    std::vector<double>& points_out,
+    std::vector<int>& triangles_out,
+    std::vector<int>& surfaceID_out,
+    const bool b_split,
+    const bool b_write_vtk,
+    const std::string write_vtk_file_name)
+{
+    if (!b_split) {
+        // NOT split
+        RemeshManager RM;
 
-    if (b_split) {
-        std::vector<Mesh> split_mesh_list;
-        MESHIO::splitDifferentFaces(mesh, split_mesh_list);
-
-        for (int i = 0; i < split_mesh_list.size(); i++) {
-            if (i != 10) {
-                continue;
-            }
-            std::string before_write_vtk_file_name = write_vtk_file_name;
-            before_write_vtk_file_name += "before_10.vtk";
-            MESHIO::writeVTK(before_write_vtk_file_name, split_mesh_list[i], "surface_id");
-
-            std::cout << i << "th part " << std::endl;
-            MESHIO::resetOrientation(split_mesh_list[i]);
-
-            RM.remesh(split_mesh_list[i], split_mesh_list[i]);
-            std::cout << "remesh end" << std::endl;
-
-            if (b_write_vtk) {
-                std::cout << "write file to " << write_vtk_file_name << std::endl;
-                std::string new_write_vtk_file_name = write_vtk_file_name;
-                new_write_vtk_file_name += std::to_string(i) + ".vtk";
-                MESHIO::writeVTK(new_write_vtk_file_name, split_mesh_list[i], "surface_id");
-            }
-
+        // mesh check
+        if (RM.checkInput(points, triangles, surfaceID) != 0) {
+            return -1;
         }
-        MESHIO::addMesh(split_mesh_list, mesh);
+        std::cout << "    check input end" << std::endl;
 
+        // mesh input
+        Mesh mesh;
+        MESHIO::setData(points, triangles, surfaceID, mesh);
+
+        // parameter
+        RM.addSizeFunction(size_function);
+
+        double hmax, hmin, average;
+        MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
+        aabb::Tree aabbTree(3);
+
+        // mesh repair
+        RM.repair(mesh, 1e-4);
+        MESHIO::resetOrientation(mesh);
+
+        // core remesh
+        RM.remesh(mesh, mesh);
+        std::cout << "remesh end" << std::endl;
+
+        // mesh repair
         RM.repair(mesh);
-        //MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
-        //MESHIO::repair(mesh);
 
+        // mesh output
         MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
 
         if (b_write_vtk) {
             std::cout << "write file to " << write_vtk_file_name << std::endl;
             MESHIO::writeVTK(write_vtk_file_name, mesh, "surface_id");
         }
+
     }
     else {
-        //MESHIO::removeDulplicatePoint(mesh.Vertex, mesh.Topo, 1e-4);
-        //MESHIO::repair(mesh);
-        RM.repair(mesh, 1e-4);
-        MESHIO::resetOrientation(mesh);
+        // split mesh to several small part
 
-        RM.remesh(mesh, mesh);
-        std::cout << "remesh end" << std::endl;
+        RemeshManager RM;
 
+        // mesh check
+        if (RM.checkInput(points, triangles, surfaceID) != 0) {
+            return -1;
+        }
+        std::cout << "    check input end" << std::endl;
+
+        // mesh input
+        Mesh mesh;
+        MESHIO::setData(points, triangles, surfaceID, mesh);
+
+        // split mesh to several small part
+        std::vector<Mesh> split_mesh_list;
+        MESHIO::splitDifferentFaces(mesh, split_mesh_list);
+
+        // global parameter
+        RM.addSizeFunction(size_function);
+
+        for (int i = 0; i < split_mesh_list.size(); i++) {
+            //if (i != 10) {
+            //    continue;
+            //}
+            //std::string before_write_vtk_file_name = write_vtk_file_name;
+            //before_write_vtk_file_name += "before_10.vtk";
+            //MESHIO::writeVTK(before_write_vtk_file_name, split_mesh_list[i], "surface_id");
+
+            // local parameter
+            double hmax, hmin, average;
+            MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
+            aabb::Tree aabbTree(3);
+
+            // core remesh
+            std::cout << "remesh" << i << "th part " << std::endl;
+            RM.remesh(split_mesh_list[i], split_mesh_list[i]);
+            std::cout << "remesh end" << std::endl;
+
+            //if (b_write_vtk) {
+            //    std::cout << "write file to " << write_vtk_file_name << std::endl;
+            //    std::string new_write_vtk_file_name = write_vtk_file_name;
+            //    new_write_vtk_file_name += std::to_string(i) + ".vtk";
+            //    MESHIO::writeVTK(new_write_vtk_file_name, split_mesh_list[i], "surface_id");
+            //}
+
+        }
+
+        // mesh repair
+        MESHIO::addMesh(split_mesh_list, mesh);
         RM.repair(mesh);
 
+        // mesh output
         MESHIO::getData(mesh, points_out, triangles_out, surfaceID_out);
 
         if (b_write_vtk) {
@@ -89,37 +152,6 @@ int MESHIO::API_remesh_non_manifold(
 
     return 0;
 }
-
-int MESHIO::API_remesh_non_manifold(
-    const std::vector<double>& points, 
-    const std::vector<int>& triangles, 
-    const std::vector<int>& surfaceID, 
-    const std::string size_vtk_file_name, 
-    std::vector<double>& points_out,
-    std::vector<int>& triangles_out,
-    std::vector<int>& surfaceID_out,
-    const bool b_split,
-    const bool b_write_vtk, 
-    const std::string write_vtk_file_name)
-{
-    RemeshManager RM;
-    std::function<double(double, double, double)> size_function;
-
-    RM.getSizeFunction(size_vtk_file_name, size_function);
-
-    return API_remesh_non_manifold(
-        points, 
-        triangles, 
-        surfaceID, 
-        size_function, 
-        points_out,
-        triangles_out,
-        surfaceID_out,
-        b_split,
-        b_write_vtk, 
-        write_vtk_file_name);
-}
-
 
 MESHIO::RemeshParameter::RemeshParameter()
 {
@@ -623,6 +655,14 @@ int MESHIO::RemeshManager::repair(Mesh& mesh, double eps)
     return 0;
 }
 
+int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree& tree)
+{
+
+
+
+    return 0;
+}
+
 int MESHIO::RemeshManager::remesh(const Mesh& mesh, Mesh& out)
 {
     initial(mesh);
@@ -644,7 +684,7 @@ int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double,
 
 int MESHIO::RemeshManager::remesh()
 {
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 10; i++)
     {
         std::cout << "    Remesh in " << i << "th" << std::endl;
         split_long_edges(&half_mesh_, parameter_);

@@ -15,6 +15,8 @@
 #include "Halfedge/PolyMesh.h"
 #include "Halfedge/PolyMesh_Base.h"
 
+#include "AABB.h" // use to solve intersection problem
+
 using namespace MESHIO::polymesh;
 
 namespace MESHIO
@@ -27,7 +29,7 @@ int API_remesh_non_manifold(
 	const std::vector<double>& points,
 	const std::vector<int>& triangles,
 	const std::vector<int>& surfaceID,
-	const std::function<double(double, double, double)>& size_function,
+	const std::string size_vtk_file_name,
 	std::vector<double>& points_out,
 	std::vector<int>& triangles_out,
 	std::vector<int>& surfaceID_out,
@@ -40,7 +42,7 @@ int API_remesh_non_manifold(
 	const std::vector<double>& points,
 	const std::vector<int>& triangles,
 	const std::vector<int>& surfaceID,
-	const std::string size_vtk_file_name,
+	const std::function<double(double, double, double)>& size_function,
 	std::vector<double>& points_out,
 	std::vector<int>& triangles_out,
 	std::vector<int>& surfaceID_out,
@@ -139,6 +141,16 @@ public:
 	//     1  otherwise;
 	int repair(Mesh& mesh, double eps = 1e-6);
 
+	// build AABB tree for check swap operation valid
+	// Input:
+	//     mesh: point coordinates and triangular topology
+	// Output:
+	//     tree: AABB tree
+	// Return:
+	//     0  if success;
+	//     1  otherwise;
+	int buildAABBTree(Mesh& mesh, aabb::Tree &tree);
+
 	int remesh(); //  core function
 	int remesh(const Mesh& mesh, Mesh& out);
 	int remesh(const Mesh &mesh, std::function<double(double, double, double)>& size_function, Mesh &out);
@@ -158,7 +170,7 @@ private:
 private:
 	//Mesh* mesh_ = nullptr;
 	polymesh::PolyMesh half_mesh_;
-	AABB_Tree* abtree_ = nullptr;
+	AABB_Tree* abtree_ = nullptr; // polygen mesh use
 	RemeshParameter parameter_;
 };
 

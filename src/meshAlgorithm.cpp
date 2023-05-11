@@ -975,6 +975,45 @@ int MESHIO::removeDegradationTopo(Mesh& mesh)
 	return 0;
 }
 
+int MESHIO::calculateEdgesLength(const Mesh& mesh, double& hmax, double& hmin, double& average)
+{
+	auto& V = mesh.Vertex;
+	auto& T = mesh.Topo;
+	auto& M = mesh.Masks;
+	
+	int nsum = 0;
+	double sum = 0;
+	hmax = std::numeric_limits<double>::min();
+	hmin = std::numeric_limits<double>::max();
+
+	for (int i = 0; i < T.rows(); i++) {
+		for (int j = 0; j < T.cols(); j++) {
+			int k = (j + 1) % T.cols();
+			int p1i = T(i, j);
+			int p2i = T(i, k);
+
+			Eigen::Vector3d p1 = V.row(p1i);
+			Eigen::Vector3d p2 = V.row(p2i);
+			Eigen::Vector3d p1p2 = p1 - p2;
+
+			double length = p1p2.norm();
+			
+			if (hmax < length) {
+				hmax = length;
+			}
+			if (hmin > length) {
+				hmin = length;
+			}
+			sum += length;
+			nsum++;
+		}
+	}
+
+	average = 1.0 * sum / nsum;
+
+	return 0;
+}
+
 void MESHIO::dfs_get_loop2(int cur, int pre, std::vector<bool>& vis, std::vector<std::vector<int>>& G, std::vector<int>& path, std::vector<std::vector<int>>& loop_lst)
 {
 	if(vis[cur])
