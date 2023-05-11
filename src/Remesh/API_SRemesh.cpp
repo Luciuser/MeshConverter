@@ -1,7 +1,11 @@
+#include<algorithm>
+
 #include "API_SRemesh.h"
 
 #include "meshAlgorithm.h"
 #include "tiger_sizingfunction.h"
+
+#include "intersection.h"
 
 using namespace MESHIO::polymesh;
 
@@ -396,7 +400,7 @@ void MESHIO::RemeshManager::delete_lowdegree(PolyMesh* mesh)
     }
 }
 
-void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, aabb::Tree* aabbTree_)
+void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, aabb::Tree* tree)
 {
     std::vector<int> target_valence;
     int deviation_pre, deviation_post;
@@ -506,8 +510,95 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, aabb::Tree* aabbTr
         if ((!mesh->isBoundary(v4)) && (mesh->valence(v4) + 1 <= 3))
             continue;
 
-        if (deviation_pre > deviation_post)
-            mesh->flipEdgeTriangle(*e_it);
+        if (deviation_pre < deviation_post) {
+            continue;
+        }
+        
+        /* aabb tree judge */
+        std::vector<double> lower;
+        std::vector<double> upper;
+
+        std::vector<Eigen::Vector3d> triangle143 = { v1->position(), v4->position(), v3->position() };
+        std::vector<Eigen::Vector3d> triangle234 = { v2->position(), v3->position(), v4->position() };
+
+        // get simple aabb box intersection by aabb tree
+        calculateBoundingBoxForOneElement(triangle143, lower, upper);
+        tree->insertParticle(UINT_MAX, lower, upper);
+        auto intersection143 = tree->query(UINT_MAX);
+        tree->removeParticle(UINT_MAX);
+
+        calculateBoundingBoxForOneElement(triangle234, lower, upper);
+        tree->insertParticle(UINT_MAX, lower, upper);
+        auto intersection234 = tree->query(UINT_MAX);
+        tree->removeParticle(UINT_MAX);
+
+        // try to find intersection robust
+        bool b_intersect = false;
+        for (auto iter : intersection143) {
+            if (b_intersect) {
+                break;
+            }
+            if (iter != UINT_MAX && iter != he1->polygon()->index() && iter != he1->pair()->polygon()->index()) {
+                MHalfedge* iter_he_begin = getPolyFace(iter)->halfEdge();
+                MHalfedge* iter_he = iter_he_begin;
+                std::vector<MVert*> iter_poly_vertexes;
+                do 
+                {
+                    MVert* iter_fv = iter_he->toVertex();
+                    iter_poly_vertexes.push_back(iter_fv);
+
+                    iter_he = iter_he->next();
+                } while (iter_he != iter_he_begin);
+
+                if (iter_poly_vertexes.size() < 3) {
+                    std::cout << "Warning: there exist one poly which only has two points while swapping." << std::endl;
+                    b_intersect = true;
+                    continue;
+                }
+
+                int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                if (success != interresult::DISJOINT) {
+                    b_intersect = true;
+                }
+            }
+        }
+        for (auto iter : intersection234) {
+            if (b_intersect) {
+                break;
+            }
+            if (iter != UINT_MAX && iter != he1->polygon()->index() && iter != he1->pair()->polygon()->index()) {
+                MHalfedge* iter_he_begin = getPolyFace(iter)->halfEdge();
+                MHalfedge* iter_he = iter_he_begin;
+                std::vector<MVert*> iter_poly_vertexes;
+                do
+                {
+                    MVert* iter_fv = iter_he->toVertex();
+                    iter_poly_vertexes.push_back(iter_fv);
+
+                    iter_he = iter_he->next();
+                } while (iter_he != iter_he_begin);
+
+                if (iter_poly_vertexes.size() < 3) {
+                    std::cout << "Warning: there exist one poly which only has two points while swapping." << std::endl;
+                    b_intersect = true;
+                    continue;
+                }
+
+                int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                if (success != interresult::DISJOINT) {
+                    b_intersect = true;
+                }
+            }
+        }
+
+        // if there exist intersection after flip operation, this operation should be banned!
+        if (b_intersect) {
+            continue;
+        }
+
+        mesh->flipEdgeTriangle(*e_it);
+
+
     }
 
     /*boundary judge*/
@@ -674,15 +765,15 @@ int MESHIO::RemeshManager::repair(Mesh& mesh, double eps)
 
 int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh)
 {
-    return buildAABBTree(mesh, aabbTree_);
+    return buildAABBTree(mesh, &aabbTree_);
 }
 
-int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree* tree)
+int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree** tree)
 {
     // build AABB tree
     double hmax, hmin, average;
     MESHIO::calculateEdgesLength(mesh, hmax, hmin, average);
-    tree = new aabb::Tree(3, hmin * 0.0001);
+    (*tree) = new aabb::Tree(3, hmin * 0.0001);
 
     // set data in
     int nFacet = mesh.Topo.rows();
@@ -691,10 +782,47 @@ int MESHIO::RemeshManager::buildAABBTree(Mesh& mesh, aabb::Tree* tree)
         std::vector<double> lower;
         std::vector<double> upper;
         MESHIO::calculateBoundingBoxForOneElement(mesh, i, lower, upper);
-        tree->insertParticle(i, lower, upper);
+        (*tree)->insertParticle(i, lower, upper);
     }
 
     return 0;
+}
+
+int MESHIO::RemeshManager::calculateBoundingBoxForOneElement(const std::vector<Eigen::Vector3d>& point, std::vector<double>& lower, std::vector<double>& upper)
+{
+    lower.clear();
+    upper.clear();
+
+    lower.resize(3, std::numeric_limits<double>::max());
+    upper.resize(3, std::numeric_limits<double>::min());
+    for (int i = 0; i < point.size(); i++) {
+        if (lower[0] > point[i].x()) {
+            lower[0] = point[i].x();
+        }
+        if (lower[1] > point[i].y()) {
+            lower[1] = point[i].y();
+        }
+        if (lower[2] > point[i].z()) {
+            lower[2] = point[i].z();
+        }
+
+        if (upper[0] < point[i].x()) {
+            upper[0] = point[i].x();
+        }
+        if (upper[1] < point[i].y()) {
+            upper[1] = point[i].y();
+        }
+        if (upper[2] < point[i].z()) {
+            upper[2] = point[i].z();
+        }
+    }
+
+    return 0;
+}
+
+int MESHIO::RemeshManager::triangleIntersectionCheck(Eigen::Vector3d& a, Eigen::Vector3d& b, Eigen::Vector3d& c, Eigen::Vector3d& o, Eigen::Vector3d& p, Eigen::Vector3d& q)
+{
+    return tri_tri_inter(a.data(), b.data(), c.data(), o.data(), p.data(), q.data());
 }
 
 int MESHIO::RemeshManager::remesh(const Mesh& mesh, Mesh& out)
@@ -721,11 +849,11 @@ int MESHIO::RemeshManager::remesh()
     for (int i = 0; i < 10; i++)
     {
         std::cout << "    Remesh in " << i << "th" << std::endl;
-        split_long_edges(&half_mesh_, parameter_);
-        collapse_short_edges(&half_mesh_, parameter_);
+        //split_long_edges(&half_mesh_, parameter_);
+        //collapse_short_edges(&half_mesh_, parameter_);
         equalize_valences(&half_mesh_, aabbTree_);
-        tangential_relaxation(&half_mesh_);
-        project_to_surface(&half_mesh_, abtree_);
+        //tangential_relaxation(&half_mesh_);
+        //project_to_surface(&half_mesh_, abtree_);
     }
     return 0;
 }

@@ -57,7 +57,7 @@ namespace MESHIO{
 	//     meshlist: several meshes
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int splitDifferentFaces(const Mesh& mesh, std::vector<Mesh>& meshlist);
 
 	// remove all hanging points in mesh
@@ -65,7 +65,7 @@ namespace MESHIO{
 	//     mesh: mesh which has hanging point
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int removeHangingPoint(Mesh& mesh);
 
 	// remove all dulplicate topo in mesh
@@ -73,7 +73,7 @@ namespace MESHIO{
 	//     mesh: mesh which has dulplicate topo
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int removeDulplicateTopo(Mesh& mesh);
 
 	// remove all degradation topo in mesh
@@ -81,7 +81,7 @@ namespace MESHIO{
 	//     mesh: mesh which has degradation topo
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int removeDegradationTopo(Mesh& mesh);
 
 	// calculate the longest and shortest edges in mesh
@@ -93,7 +93,7 @@ namespace MESHIO{
 	//     average: the average length
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int calculateEdgesLength(const Mesh& mesh, double &hmax, double &hmin, double &average);
 
 	// for one element, get the AABB bounding box.
@@ -105,9 +105,8 @@ namespace MESHIO{
 	//     upper: the upper position of AABB bounding box
 	// Return:
 	//     0  if success;
-	//     1  otherwise;
+	//     otherwise fail;
 	int calculateBoundingBoxForOneElement(const Mesh& mesh, const int index, std::vector<double> &lower, std::vector<double> &upper);
-
 }
 
 #endif

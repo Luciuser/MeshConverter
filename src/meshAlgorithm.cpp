@@ -1016,6 +1016,9 @@ int MESHIO::calculateEdgesLength(const Mesh& mesh, double& hmax, double& hmin, d
 
 int MESHIO::calculateBoundingBoxForOneElement(const Mesh& mesh, const int index, std::vector<double>& lower, std::vector<double>& upper)
 {
+	lower.clear();
+	upper.clear();
+
 	auto& V = mesh.Vertex;
 	auto& T = mesh.Topo;
 

@@ -46,6 +46,9 @@ set(SREMESH_SOURCES
     src/Remesh/API_SRemesh.cpp
     src/Remesh/AABB.h
     src/Remesh/AABB.cc
+    src/Remesh/intersection.h
+    src/Remesh/intersection.cpp
+    src/Remesh/predicates.cc
     src/Remesh/tiger_sizingfunction.h
     
     src/Halfedge/PolyMesh_Base.cpp
