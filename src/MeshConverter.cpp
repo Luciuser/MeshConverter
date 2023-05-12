@@ -266,7 +266,7 @@ int main(int argc, char **argv)
 				triangles_out,
 				surfaceID_out,
 				false,
-				false,
+				true,
 				true,
 				remesh_debug_file
 			);

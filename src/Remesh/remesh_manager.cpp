@@ -292,7 +292,7 @@ int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double,
 
 int MESHIO::RemeshManager::remesh()
 {
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 10; i++)
     {
         std::cout << "    Remesh in " << i << "th" << std::endl;
         // opeartion 0
@@ -622,7 +622,6 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, RemeshParameter& p
                 continue;
             }
         }
-
 
         // finish all test
         if (parameter_.aabbTree()) {
