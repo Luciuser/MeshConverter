@@ -265,9 +265,9 @@ int main(int argc, char **argv)
 				points_out,
 				triangles_out,
 				surfaceID_out,
+				false,
+				false,
 				true,
-				false,
-				false,
 				remesh_debug_file
 			);
 

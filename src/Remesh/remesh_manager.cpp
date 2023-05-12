@@ -292,13 +292,18 @@ int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double,
 
 int MESHIO::RemeshManager::remesh()
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 1; i++)
     {
         std::cout << "    Remesh in " << i << "th" << std::endl;
+        // opeartion 0
         split_long_edges(&half_mesh_, parameter_);
+        // opeartion 1
         collapse_short_edges(&half_mesh_, parameter_);
+        // opeartion 2
         equalize_valences(&half_mesh_, parameter_);
+        // opeartion 3
         tangential_relaxation(&half_mesh_);
+        // opeartion 4
         project_to_surface(&half_mesh_, abtree_);
     }
     return 0;
@@ -667,6 +672,12 @@ void MESHIO::RemeshManager::tangential_relaxation(PolyMesh* mesh)
         return sqrt(0.5 * ((v1 - v0).cross((v2 - v0))).squaredNorm());
     };
 
+    auto get_TriFace_Normal = [](const Eigen::Vector3d& v0, const Eigen::Vector3d& v1, const Eigen::Vector3d& v2) {
+        auto normal = (v1 - v0).cross((v2 - v1));
+        return normal.normalized();
+    };
+    
+    std::vector<Eigen::Vector3d> triangle_normals;
     for (VertexIter v_it = mesh->vertices_begin(); v_it != mesh->vertices_end(); ++v_it)
     {
         if (mesh->isBoundary(*v_it))
@@ -686,19 +697,21 @@ void MESHIO::RemeshManager::tangential_relaxation(PolyMesh* mesh)
             }
 
             area = get_TriFace_Area(vertexlist[0], vertexlist[1], vertexlist[2]);
+            triangle_normals.push_back(get_TriFace_Normal(vertexlist[0], vertexlist[1], vertexlist[2]));
             sum_area += area;
 
             q += ((*vf_it)->getFaceCenter()) * area;
         }
         q /= sum_area;
 
-        // Laplace
+         // Laplace
         // for (VertexVertexIter vv_it = mesh->vv_iter(*v_it); vv_it.isValid(); ++vv_it)
         //{
         //	q += (*vv_it)->position();
         //	++count;
         // }
         // q /= count;
+
         Eigen::Vector3d n = (*v_it)->normal();
         n.normalize();
 
@@ -709,8 +722,40 @@ void MESHIO::RemeshManager::tangential_relaxation(PolyMesh* mesh)
         // double dis;
         // surface->OrthogonalProjection(newPos, 1e-5, res_uv, dis);
         // surface->param_to_coord(res_uv, newPos);
+        
 
+        auto oldPos = (*v_it)->position();
         (*v_it)->setPosition(newPos);
+
+        // after operation, check the valid of area
+        bool area_valid = true;
+        int tni = 0;
+        for (VertexFaceIter vf_it = mesh->vf_iter(*v_it); vf_it.isValid(); ++vf_it)
+        {
+            std::vector<Eigen::Vector3d> vertexlist;
+            for (FaceVertexIter fv_it = mesh->fv_iter(*vf_it); fv_it.isValid(); ++fv_it)
+            {
+                vertexlist.push_back((*fv_it)->position());
+            }
+
+            auto face_normal_new = get_TriFace_Normal(vertexlist[0], vertexlist[1], vertexlist[2]);
+            if (tni >= triangle_normals.size()) {
+                std::cout << "Warning: the rank of one point is not same after CPT operation" << std::endl;
+                break;
+            }
+            double result = face_normal_new.dot(triangle_normals[tni]);
+            if (result < -1e-10) {
+                area_valid = false;
+                break;
+            }
+            tni++;
+
+        }
+
+        if (area_valid == false) {
+            (*v_it)->setPosition(oldPos);
+            continue;;
+        }
     }
 }
 
