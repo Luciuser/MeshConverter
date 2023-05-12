@@ -2175,15 +2175,16 @@ namespace polymesh {
 
 	bool PolyMesh::is_collapse_ok(MHalfedge* v0v1)
 	{
-		MHalfedge* he0 = v0v1;
-		MHalfedge* he1 = he0->pair();
-
 		if (v0v1 == nullptr)
 			return false;
+
+		MHalfedge* he0 = v0v1;
+		MHalfedge* he1 = he0->pair();
 
 		MVert* v0 = he0->fromVertex();
 		MVert* v1 = he0->toVertex();
 
+		// if v0v1 and v1v0 is a triangle and exist in mesh
 		bool v0v1_triangle = false;
 		bool v1v0_triangle = false;
 

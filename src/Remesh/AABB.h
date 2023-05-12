@@ -277,6 +277,10 @@ namespace aabb
         /// Remove all particles from the tree.
         void removeAll();
 
+        // by Jin
+        // try to find a particle in AABB tree
+        bool findParticle(int index);
+
         //! Update the tree if a particle moves outside its fattened AABB.
         /*! \param particle
                 The particle index (particleMap will be used to map the node).

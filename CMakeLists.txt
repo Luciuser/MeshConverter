@@ -44,6 +44,11 @@ set(SREMESH_SOURCES
     src/meshAlgorithm.cpp
     src/Remesh/API_SRemesh.h
     src/Remesh/API_SRemesh.cpp
+    src/Remesh/remesh_manager.h
+    src/Remesh/remesh_manager.cpp
+    src/Remesh/remesh_parameter.h
+    src/Remesh/remesh_parameter.cpp
+    
     src/Remesh/AABB.h
     src/Remesh/AABB.cc
     src/Remesh/intersection.h

@@ -257,7 +257,7 @@ int main(int argc, char **argv)
 			}
 
 			std::string remesh_debug_file = input_filename.substr(0, input_dotpos) + suffix + "_remesh_debug.vtk";
-			MESHIO::API_remesh_non_manifold(
+			API_remesh_non_manifold(
 				points,
 				triangles,
 				surfaceID,
@@ -265,6 +265,7 @@ int main(int argc, char **argv)
 				points_out,
 				triangles_out,
 				surfaceID_out,
+				true,
 				false,
 				false,
 				remesh_debug_file

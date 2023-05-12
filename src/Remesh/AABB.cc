@@ -496,6 +496,16 @@ namespace aabb
         particleMap.clear();
     }
 
+    bool Tree::findParticle(int index)
+    {
+        // Find the particle.
+        if (particleMap.count(index) == 0) {
+            return false;
+        }
+
+        return true;
+    }
+
     bool Tree::updateParticle(unsigned int particle, std::vector<double>& position, double radius,
                               bool alwaysReinsert)
     {
