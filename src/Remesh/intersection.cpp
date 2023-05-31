@@ -1,5 +1,7 @@
 #include "intersection.h"
 #include <cmath>
+#define NULL 0
+
 //namespace Adaptation {
 	// dot() returns the dot product: v1 dot v2.
 	REAL dot(REAL* v1, REAL* v2)

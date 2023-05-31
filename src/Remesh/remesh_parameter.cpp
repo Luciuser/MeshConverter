@@ -73,7 +73,6 @@ double MESHIO::RemeshParameter::getVertexSizeOrTargetHigh(const Eigen::Vector3d&
     return this->b_use_size_function_ ? high_ratio_ * getVertexSize(vertex) : high_ratio_ * target_length_;
 }
 
-
 double MESHIO::RemeshParameter::getVertexSize(const Eigen::Vector3d &vertex)
 {
     double size = size_function_(vertex.x(), vertex.y(), vertex.z());

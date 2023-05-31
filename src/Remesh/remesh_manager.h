@@ -51,6 +51,14 @@ public:
 	//     otherwise fail;
 	int initial(const Mesh& mesh);
 
+	// initial global/user target length from mesh
+	// Input:
+	//     mesh: point coordinates and triangular topology
+	// Return:
+	//     0  if success;
+	//     otherwise fail;
+	int initialUserTargetLength(const Mesh& mesh);
+
 	int addSizeFunction(std::function<double(double, double, double)> size_function);
 	int deleteSizeFunction();
 
@@ -130,6 +138,11 @@ public:
 		
 	aabb::Tree* getAABBTree() { return parameter_.aabbTree(); };
 	MESHIO::polymesh::MPolyFace* getPolyFace(int index) { return half_mesh_.polyface(index); };
+
+	void setIteration(int iteration) { parameter_.setIteration(iteration); };
+	int iteration() { return parameter_.iteration(); };
+
+	void setUserTargetLength(double target_length) { parameter_.setUserTargetLength(target_length); };
 
 private:
 	// remesh operation

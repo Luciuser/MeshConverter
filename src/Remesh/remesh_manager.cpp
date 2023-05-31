@@ -122,7 +122,29 @@ int MESHIO::RemeshManager::initial(const Mesh& mesh)
     get_AABB_tree(&half_mesh_, abtree_);
 
     // parameter initial
-    parameter_.setTargetLength(calculateTargetEdgeLength(&half_mesh_) / 2.0);
+    if (parameter_.getUserTargetLengthActive() == false) {
+        parameter_.setTargetLength(calculateTargetEdgeLength(&half_mesh_) / 2.0);
+    }
+    return 0;
+}
+
+int MESHIO::RemeshManager::initialUserTargetLength(const Mesh& mesh)
+{
+    // mesh initial
+    half_mesh_.clear();
+    for (int i = 0; i < mesh.Vertex.rows(); ++i) {
+        half_mesh_.addVertex(mesh.Vertex.row(i), Eigen::Vector2d(0, 0));
+    }
+    for (int i = 0; i < mesh.Topo.rows(); ++i) {
+        auto t = std::vector<size_t>{ size_t(mesh.Topo(i, 0)), size_t(mesh.Topo(i, 1)), size_t(mesh.Topo(i, 2)) };
+        half_mesh_.addPolyFace(t);
+    }
+
+    // parameter initial
+    if (parameter_.getUserTargetLengthActive() == false) {
+        parameter_.setUserTargetLength(calculateTargetEdgeLength(&half_mesh_) / 2.0);
+    }
+
     return 0;
 }
 
@@ -292,7 +314,8 @@ int MESHIO::RemeshManager::remesh(const Mesh& mesh, std::function<double(double,
 
 int MESHIO::RemeshManager::remesh()
 {
-    for (int i = 0; i < 10; i++)
+    std::cout << "Remesh " << parameter_.iteration() << " times" << std::endl;
+    for (int i = 0; i < parameter_.iteration(); i++)
     {
         std::cout << "    Remesh in " << i << "th" << std::endl;
         // opeartion 0
@@ -582,7 +605,8 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, RemeshParameter& p
                         continue;
                     }
 
-                    int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                    //int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                    int success = tri_tri_inter(v1->position().data(), v4->position().data(), v3->position().data(), iter_poly_vertexes[0]->position().data(), iter_poly_vertexes[1]->position().data(), iter_poly_vertexes[2]->position().data());
                     if (success != interresult::DISJOINT) {
                         b_intersect = true;
                     }
@@ -610,7 +634,8 @@ void MESHIO::RemeshManager::equalize_valences(PolyMesh* mesh, RemeshParameter& p
                         continue;
                     }
 
-                    int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                    //int success = triangleIntersectionCheck(v1->position(), v4->position(), v3->position(), iter_poly_vertexes[0]->position(), iter_poly_vertexes[1]->position(), iter_poly_vertexes[2]->position());
+                    int success = tri_tri_inter(v1->position().data(), v4->position().data(), v3->position().data(), iter_poly_vertexes[0]->position().data(), iter_poly_vertexes[1]->position().data(), iter_poly_vertexes[2]->position().data());
                     if (success != interresult::DISJOINT) {
                         b_intersect = true;
                     }

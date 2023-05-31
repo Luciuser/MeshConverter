@@ -62,9 +62,24 @@ set(SREMESH_SOURCES
     src/Halfedge/AABB_Tree.cpp
 )
 
-add_library(SRmesh_lib STATIC ${SREMESH_SOURCES})
-target_link_libraries(SRmesh_lib MeshOrient)
-target_link_libraries(SRmesh_lib  ${EXTERNAL_DIR}/adaSurfSizing/adaSurfSizing_new.lib)
+add_library(SurfRemesh_lib STATIC ${SREMESH_SOURCES})
+target_link_libraries(SurfRemesh_lib MeshOrient)
+if(WIN32)
+    message("This is Win32 system")
+    add_definitions(-DWIN32_SYSTEM)
+    target_link_libraries(SurfRemesh_lib  ${EXTERNAL_DIR}/adaSurfSizing/adaSurfSizing_new.lib)  
+elseif(UNIX)
+    if(COMPILE_IN_CENTOS)
+        message("This is Unix-Centos system")
+        add_definitions(-DUNIX_SYSTEM)
+    else()
+        message("This is Unix-Ubuntu system")
+        add_definitions(-DUNIX_SYSTEM)
+    endif()
+
+    target_link_libraries(SurfRemesh_lib  ${EXTERNAL_DIR}/adaSurfSizing/libadaSurfSizing_new.so)
+endif()
+
 
 set(SOURCES
     src/meshIO.cpp
@@ -86,7 +101,7 @@ include_directories(${IGL_BASE}/include)
 include_directories(./src/MeshOrient)
 
 add_executable(MeshConverter ${SOURCES})
-target_link_libraries(MeshConverter MeshOrient SRmesh_lib)
+target_link_libraries(MeshConverter MeshOrient SurfRemesh_lib)
 
 #add_executable(SRmesh_exe src/Remesh/SRemesh_test)
 #target_link_libraries(SRmesh_exe SRmesh_lib)

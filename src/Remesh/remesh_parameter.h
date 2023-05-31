@@ -52,13 +52,23 @@ public:
 	void setHmax(double hmax) { hmax_ = hmax; };
 	void setTargetLength(double target_length) { target_length_ = target_length; };
 
+	void setUserTargetLength(double target_length) { target_length_ = target_length; b_use_user_target_length_ = true; };
+	bool getUserTargetLengthActive() { return b_use_user_target_length_; };
+
+	// ----- iteration ----- //
+	int iteration() { return iteration_; };
+	void setIteration(int iteration) { iteration_ = iteration; };
+
 private:
+	int iteration_ = 10;
+
 	// AABB tree
 	bool b_use_aabb_tree_ = false;
 	aabb::Tree* aabbTree_ = nullptr; // intersection use
 
 	// size
 	bool b_use_size_function_ = false;
+	bool b_use_user_target_length_ = false;
 	std::function<double(double, double, double)> size_function_;
 	double hmin_ = 0.00001; // the min size
 	double hmax_ = 100000; // the max size

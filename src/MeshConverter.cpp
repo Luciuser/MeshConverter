@@ -29,8 +29,14 @@ int main(int argc, char **argv)
 	bool RepairZeroAera = false;
 	bool resetOritationFaceid = false;
 	bool removebox = false;
+	bool bremeshorigin = false;
 	bool bremesh = false;
+	int remesh_iteration = 10;
 	std::string remeshFromSize;
+	double remesh_size_target = -1;
+	bool bremesh_useAABBtree = false;
+	bool bremesh_split = false;
+	double remesh_eps = 1e-4;
 	bool fillhole = false;
 	bool normalize = false;
 	double DeleteDulPoint = -1;
@@ -52,8 +58,16 @@ int main(int argc, char **argv)
 	app.add_flag("-f", exportFacet, "Write mesh in facet format.");
 	app.add_flag("-o", exportOBJ, "Write mesh in OBJ format.");
 	app.add_flag("--stl_in", exportStlIn, "Write mesh in stl.in format.");
+
+	app.add_flag("--remesh_origin", bremeshorigin, "Remesh");
 	app.add_flag("--remesh", bremesh, "Remesh");
-	app.add_option("--remesh_size", remeshFromSize, "Remesh with size function");
+	app.add_option("--remesh_iteration", remesh_iteration, "Remesh iterations");
+	app.add_option("--remesh_size_file", remeshFromSize, "Remesh with size function");
+	app.add_option("--remesh_size_target", remesh_size_target, "Remesh target size if not use size function");
+	app.add_flag("--remesh_use_aabb_tree", bremesh_useAABBtree, "Remesh using aabb tree to avoid intersection");
+	app.add_flag("--remesh_split", bremesh_split, "Remesh to split surfaces to severals faces");
+	app.add_option("--remesh_eps", remesh_eps, "Remesh eps while repairing mesh output");
+
 	app.add_flag("--fillhole", fillhole, "Fill hole by topology");
 	app.add_flag("--shuffle", shuffleMark, "Shuffle surface_id for view clearly.");
 	app.add_option("--shuffle_num", shuffle_num, "Shuffle number is [1, 100].");
@@ -234,45 +248,52 @@ int main(int argc, char **argv)
 	}
 
 	//********* Remesh *********
-	if(bremesh)
+	if (bremeshorigin)
 	{
-		if (remeshFromSize.empty() == true) {
-			MESHIO::resetOrientation(mesh);
-			MESHIO::remesh(mesh);
+		MESHIO::resetOrientation(mesh);
+		MESHIO::remesh(mesh);
+	}
+	else if (bremesh) {
+		//MESHIO::resetOrientation(mesh);
+
+		std::vector<double> points;
+		std::vector<int> triangles;
+		std::vector<int> surfaceID;
+		std::vector<double> points_out;
+		std::vector<int> triangles_out;
+		std::vector<int> surfaceID_out;
+		MESHIO::getData(mesh, points, triangles, surfaceID);
+
+		if (surfaceID.size() == 0) {
+			std::cout << "Warnning: No surfaceID. Every triangle will be marked as 0" << std::endl;
+			surfaceID.resize(triangles.size() / 3, 0);
 		}
-		else {
-			//MESHIO::resetOrientation(mesh);
 
-			std::vector<double> points;
-			std::vector<int> triangles;
-			std::vector<int> surfaceID;
-			std::vector<double> points_out;
-			std::vector<int> triangles_out;
-			std::vector<int> surfaceID_out;
-			MESHIO::getData(mesh, points, triangles, surfaceID);
+		std::string remesh_debug_file = input_filename.substr(0, input_dotpos) + suffix + "_remesh_debug.vtk";
 
-			if (surfaceID.size() == 0) {
-				std::cout << "Warnning: No surfaceID. Every triangle will be marked as 0" << std::endl;
-				surfaceID.resize(triangles.size() / 3, 0);
-			}
-
-			std::string remesh_debug_file = input_filename.substr(0, input_dotpos) + suffix + "_remesh_debug.vtk";
-			API_remesh_non_manifold(
-				points,
-				triangles,
-				surfaceID,
-				remeshFromSize,
-				points_out,
-				triangles_out,
-				surfaceID_out,
-				false,
-				true,
-				true,
-				remesh_debug_file
-			);
-
-			MESHIO::setData(points_out, triangles_out, surfaceID_out, mesh);
+		if (remeshFromSize.empty()) {
+			remeshFromSize = "NO_USE";
 		}
+
+		API_remesh_non_manifold_file(
+			points,
+			triangles,
+			surfaceID,
+			points_out,
+			triangles_out,
+			surfaceID_out,
+			remesh_iteration,
+			remeshFromSize,
+			remesh_size_target,
+			bremesh_useAABBtree,
+			bremesh_split,
+			remesh_eps,
+			false,
+			remesh_debug_file,
+			false // split print
+		);
+
+		MESHIO::setData(points_out, triangles_out, surfaceID_out, mesh);
 	}
 	
 	//********* Create some box ********
